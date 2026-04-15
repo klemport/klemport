@@ -1,0 +1,2038 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Overtime – Football Card Game</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --text:#e9ecff;
+      --muted:#b7c0ff;
+      --good:#7dffb2;
+      --warn:#ffd37d;
+      --bad:#ff7d7d;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+      --flashYellow: rgba(255, 235, 110, .95);
+
+      /* Card look */
+      --cardWhite: #f7f7fb;
+      --cardEdge: rgba(0,0,0,.18);
+      --cardInset: rgba(0,0,0,.08);
+      --cardShadow: 0 10px 18px rgba(0,0,0,.25);
+      --cardRed: #c8152a;
+      --cardBlack: #111827;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 700px at 30% -10%, #1b2a66 0%, transparent 60%),
+                  radial-gradient(900px 600px at 85% 10%, #3a1b66 0%, transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      padding:14px;
+    }
+
+    /* Deck warning flash (0.5s red, 0.5s normal) */
+    @keyframes deckFlash {
+      0%   { color: rgba(255,125,125,.98); }
+      50%  { color: rgba(233,236,255,.92); }
+      100% { color: rgba(255,125,125,.98); }
+    }
+    .deckFlash {
+      animation: deckFlash 1s infinite;
+      font-weight: 950;
+      text-shadow: 0 6px 18px rgba(255,125,125,.12);
+    }
+
+    .wrap{
+      max-width:1700px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap:12px;
+      align-items:start;
+    }
+    @media (max-width: 1280px){ .wrap{grid-template-columns: 1fr} }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .hd{
+      padding:10px 14px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: rgba(0,0,0,.16);
+    }
+    .title{
+      font-weight:950;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .miniState{
+      font-size:16px;
+      font-weight:950;
+      padding:8px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(233,236,255,.92);
+      background: rgba(0,0,0,.14);
+      white-space:nowrap;
+    }
+
+    .pill{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      color:var(--muted);
+      background: rgba(0,0,0,.14);
+      white-space:nowrap;
+    }
+    .bd{padding:12px}
+
+    /* Scoreboard */
+    .scoreboard{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .team{
+      background: rgba(0,0,0,.14);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding:12px;
+      display:grid;
+      grid-template-columns: 1fr auto;
+      align-items:center;
+      gap:8px;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .team.hasBall{
+      border-color: rgba(255,211,125,.65);
+      box-shadow: 0 0 0 2px rgba(255,211,125,.18) inset;
+    }
+    .team.winFlash{
+      outline: 3px solid var(--flashYellow);
+      outline-offset: 0px;
+      box-shadow: 0 0 0 2px rgba(255,235,110,.22) inset, 0 0 24px rgba(255,235,110,.18);
+    }
+    .name{ font-size:15px; font-weight:950; }
+    .dir{ font-size:12px; color:var(--muted); margin-top:2px; }
+    .score{ font-size:40px; font-weight:950; letter-spacing:1px; padding:0 6px; }
+
+    /* Field */
+    .fieldWrap{ padding:10px 0 0 0; }
+    .field{
+      height:210px;
+      border-radius: 18px;
+      position:relative;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.30), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,.30)),
+        linear-gradient(180deg, rgba(18,70,35,.85), rgba(12,52,27,.90));
+    }
+    .endzone{
+      position:absolute; top:0; bottom:0; width:10%;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:950; letter-spacing:2px; opacity:.85;
+      text-transform:uppercase;
+      font-size:13px;
+      writing-mode: vertical-rl;
+      background: rgba(180,124,255,.22);
+      border-right:1px solid rgba(255,255,255,.12);
+      user-select:none;
+      transition: background .15s ease, box-shadow .15s ease, color .15s ease;
+    }
+    .endzone.right{
+      right:0; left:auto;
+      background: rgba(122,162,255,.22);
+      border-right:none;
+      border-left:1px solid rgba(255,255,255,.12);
+    }
+    .endzone.left{ left:0; transform: rotate(180deg); }
+
+    .endzone.flashOn{
+      background: rgba(255,235,110,.32) !important;
+      color: rgba(255,255,255,.95);
+      box-shadow: inset 0 0 0 2px rgba(255,235,110,.55);
+    }
+
+    .linesLayer{
+      position:absolute; inset:0;
+      left:10%; right:10%;
+      pointer-events:none;
+      background:
+        repeating-linear-gradient(90deg,
+          rgba(255,255,255,.18) 0px, rgba(255,255,255,.18) 2px,
+          transparent 2px, transparent 5%);
+      opacity:.95;
+    }
+    .tensLayer{
+      position:absolute; inset:0;
+      left:10%; right:10%;
+      pointer-events:none;
+      background:
+        repeating-linear-gradient(90deg,
+          rgba(255,255,255,.35) 0px, rgba(255,255,255,.35) 3px,
+          transparent 3px, transparent 10%);
+      opacity:.85;
+      mix-blend-mode: screen;
+    }
+    .yardLabel{
+      position:absolute;
+      top:8px;
+      transform: translateX(-50%);
+      font-size:12px;
+      font-weight:950;
+      color: rgba(233,236,255,.88);
+      text-shadow: 0 2px 8px rgba(0,0,0,.55);
+      pointer-events:none;
+      user-select:none;
+    }
+    .yardLabel.bottom{ top:auto; bottom:8px; }
+    .ball{
+      position:absolute;
+      top:50%;
+      transform: translate(-50%,-50%);
+      width:20px; height:20px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #fff 0%, #ffd9b0 35%, #c86d2f 85%);
+      border:2px solid rgba(0,0,0,.35);
+      box-shadow: 0 10px 18px rgba(0,0,0,.35);
+      z-index:5;
+    }
+    .ball.hidden{ display:none; }
+    .los{
+      position:absolute; top:0; bottom:0; width:3px;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.35);
+      z-index:4;
+    }
+    .firstDown{
+      position:absolute; top:0; bottom:0; width:3px;
+      transform: translateX(-50%);
+      background: rgba(125,255,178,.78);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.35);
+      z-index:4;
+    }
+
+    /* Chart */
+    .chartWrap{
+      margin-top:10px;
+      background: rgba(0,0,0,.14);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      overflow:hidden;
+    }
+    .chartHd{
+      padding:8px 10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .chartHd .lbl{
+      font-weight:950;
+      letter-spacing:.2px;
+      font-size:13px;
+    }
+    .chartBd{ overflow-x:hidden; overflow-y:visible; }
+    table.chart{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      font-size:12px;
+      table-layout: fixed;
+    }
+    .chart th, .chart td{
+      border-right:1px solid rgba(255,255,255,.08);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      padding:6px 4px;
+      text-align:center;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .chart thead th{
+      position:sticky;
+      top:0;
+      background: rgba(10,16,32,.96);
+      z-index:2;
+      font-weight:950;
+    }
+    .chart col.offcol{ width: 220px; }
+    .chart col.defcol{ width: calc((100% - 220px) / 13); }
+    .chart th.stickyCol{
+      position:sticky;
+      left:0;
+      background: rgba(10,16,32,.96);
+      z-index:3;
+      font-weight:950;
+      text-align:left;
+      padding-left:10px;
+    }
+    .chart td.stickyCol{
+      position:sticky;
+      left:0;
+      background: rgba(10,16,32,.88);
+      z-index:1;
+      font-weight:950;
+      text-align:left;
+      padding-left:10px;
+      color: rgba(233,236,255,.92);
+    }
+    .subname{
+      font-weight:800;
+      color: rgba(233,236,255,.72);
+      margin-left:6px;
+      display:inline-block;
+      max-width: 155px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      vertical-align:bottom;
+    }
+    .hiRow td, .hiRow .stickyCol{ background: rgba(122,162,255,.12) !important; }
+    .hiCol{ background: rgba(180,124,255,.10) !important; }
+    .hiCell{
+      background: rgba(125,255,178,.16) !important;
+      outline:2px solid rgba(125,255,178,.45);
+      outline-offset:-2px;
+      font-weight:950;
+    }
+    .hiPlayName{
+      outline:2px solid rgba(255,211,125,.35);
+      outline-offset:-2px;
+      background: rgba(255,211,125,.10) !important;
+    }
+    .hoverRow td, .hoverRow .stickyCol{
+      background: rgba(255,211,125,.10) !important;
+      box-shadow: inset 0 0 0 1px rgba(255,211,125,.14);
+    }
+    .hoverRow .stickyCol{
+      outline:2px solid rgba(255,211,125,.30);
+      outline-offset:-2px;
+    }
+
+    .outGood{color: rgba(125,255,178,.95); font-weight:900}
+    .outBad{color: rgba(255,125,125,.95); font-weight:900}
+    .outWarn{color: rgba(255,211,125,.95); font-weight:900}
+
+    /* Right column */
+    .controls{
+      display:grid;
+      gap:12px;
+      min-width: 620px;
+    }
+    @media (max-width: 1280px){ .controls{min-width: 0;} }
+
+    .section{
+      background: rgba(0,0,0,.14);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding:12px;
+    }
+    .sectionHdr{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin:0 0 10px 0;
+    }
+    .sectionHdr h3{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.25px;
+      font-weight:950;
+    }
+    .roleInline{
+      font-size:12px;
+      color: rgba(233,236,255,.78);
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.14);
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    button{
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:950;
+      letter-spacing:.2px;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    button:hover{background: rgba(255,255,255,.10)}
+    button:active{transform: translateY(1px)}
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+    .primary{
+      background: rgba(122,162,255,.16);
+      border-color: rgba(122,162,255,.35);
+    }
+    .danger{
+      background: rgba(255,125,125,.12);
+      border-color: rgba(255,125,125,.28);
+    }
+    .good{
+      background: rgba(125,255,178,.12);
+      border-color: rgba(125,255,178,.28);
+    }
+
+    /* Cards */
+    .hand{
+      display:flex;
+      gap:12px;
+      flex-wrap:nowrap;
+      overflow:visible;
+      justify-content:flex-start;
+    }
+    .cardBtn{
+      width:86px;
+      height:116px;
+      border-radius: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:950;
+      font-size:26px;
+      line-height:1;
+      position:relative;
+      padding:0;
+      flex: 0 0 auto;
+
+      background: linear-gradient(180deg, #ffffff, #f7f7fb);
+      border: 1px solid rgba(0,0,0,.18);
+      box-shadow: 0 10px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(0,0,0,.08);
+      color: #111827;
+    }
+    .cardBtn:hover{ filter: brightness(1.02); transform: translateY(-1px); }
+    .cardBtn:active{ transform: translateY(0px); }
+    .cardBtn:disabled{ opacity:.55; transform:none; filter:none; cursor:not-allowed; }
+    .cardBtn .corner{
+      position:absolute;
+      font-size:12px;
+      font-weight:950;
+      opacity:.95;
+    }
+    .cardBtn .corner.tl{top:8px; left:8px}
+    .cardBtn .corner.br{bottom:8px; right:8px; transform: rotate(180deg)}
+    .cardRed{ color: #c8152a; }
+    .cardBlack{ color: #111827; }
+
+    .tinyMeta{
+      margin-top:10px;
+      color: rgba(233,236,255,.70);
+      font-size:12px;
+      line-height:1.25rem;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .log{
+      height: 325px;
+      overflow:auto;
+      padding:12px;
+      background: rgba(0,0,0,.14);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      font-size:13px;
+      line-height:1.35rem;
+      color: #dfe5ff;
+    }
+    .log .row{
+      padding:8px 8px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .log .row:last-child{border-bottom:none}
+    .tag{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      margin-right:8px;
+      font-size:11px;
+      font-weight:950;
+      letter-spacing:.3px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.12);
+      color: var(--muted);
+    }
+    .tag.good{color: var(--good); border-color: rgba(125,255,178,.35); background: rgba(125,255,178,.08)}
+    .tag.bad{color: var(--bad); border-color: rgba(255,125,125,.35); background: rgba(255,125,125,.08)}
+    .tag.warn{color: var(--warn); border-color: rgba(255,211,125,.35); background: rgba(255,211,125,.08)}
+
+    .log a{
+      color: rgba(122,162,255,.95);
+      font-weight: 950;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .log a:hover{ filter: brightness(1.1); }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- LEFT -->
+    <div class="card">
+      <div class="hd">
+        <div class="title">🏈 Overtime</div>
+        <div class="miniState" id="miniState">Press New Game</div>
+      </div>
+      <div class="bd">
+
+        <div class="scoreboard">
+          <div class="team" id="team1Box">
+            <div>
+              <div class="name" id="t1Name">Hominoids</div>
+              <div class="dir">→</div>
+            </div>
+            <div class="score" id="t1Score">0</div>
+          </div>
+          <div class="team" id="team2Box">
+            <div>
+              <div class="name" id="t2Name">Gridbots</div>
+              <div class="dir">←</div>
+            </div>
+            <div class="score" id="t2Score">0</div>
+          </div>
+        </div>
+
+        <div class="fieldWrap">
+          <div class="field" id="field">
+            <div class="endzone left" id="endzoneLeft">END ZONE</div>
+            <div class="endzone right" id="endzoneRight">END ZONE</div>
+
+            <div class="linesLayer"></div>
+            <div class="tensLayer"></div>
+
+            <div class="los" id="los"></div>
+            <div class="firstDown" id="fd"></div>
+            <div class="ball" id="ball"></div>
+          </div>
+        </div>
+
+        <div class="chartWrap">
+          <div class="chartHd">
+            <div class="lbl">📊 OFFENSE (row) vs DEFENSE (column)</div>
+            <div class="pill" id="chartHint">—</div>
+          </div>
+          <div class="chartBd" id="chartBd"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="controls">
+
+      <div class="card">
+        <div class="hd">
+          <div class="title">🎴</div>
+          <div class="pill" id="posMini">Idle</div>
+        </div>
+        <div class="bd">
+
+          <div class="section">
+            <div class="sectionHdr">
+              <h3 id="selectHdr">Select a card</h3>
+              <div class="roleInline" id="roleInline">Press New Game</div>
+            </div>
+            <div class="hand" id="hand"></div>
+
+            <div class="tinyMeta">
+              <div id="ballMini">Ball: —</div>
+              <div id="handsMini">Hands: P1 — · P2 —</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="sectionHdr">
+              <h3>Special teams</h3>
+              <div class="roleInline" id="stMini">—</div>
+            </div>
+            <div class="btnRow">
+              <button id="btnPunt" class="danger" disabled>Punt (40y)</button>
+              <button id="btnFG" class="good" disabled>Field Goal (+3)</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <div class="title">📣</div class="title">
+          <div class="btnRow">
+            <button id="btnNew" class="primary">New Game</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(() => {
+  /********************
+   * Team names for logs/UI
+   ********************/
+  const TEAM_NAME = { 1: "Hominoids", 2: "Gridbots" };
+  const tn = (t) => TEAM_NAME[t] || `Team ${t}`;
+
+  /********************
+   * Sounds
+   ********************/
+  const SOUND_FILES = {
+    Start: "Start.mp3",
+    End: "End.mp3",
+    Touchdown: "Touchdown.mp3",
+    Itsgood: "Itsgood.mp3",
+    PatriotsHorn: "PatriotsHorn_sh.mp3",
+    CrowdOoh: "CrowdOoh.mp3",
+    CrowdSteady: "Crowdsteady.mp3",
+    BigCheer: "BigCheer.mp3",
+    MediumCheer: "MediumCheer.mp3",
+    FirstDown: "firstdown.mp3",
+    Interception: "interception.mp3"
+  };
+
+  const audioPool = new Map();
+  const activeNonSteady = new Set();
+  const monoKeys = new Set(["BigCheer","MediumCheer"]);
+  const monoAudio = new Map();
+
+  const steadyAudio = new Audio(SOUND_FILES.CrowdSteady);
+  steadyAudio.loop = false;
+  steadyAudio.preload = "auto";
+  steadyAudio.volume = 1.0;
+
+  let steadyEnabled = false;
+  let gameEndedAudio = false;
+
+  let audioUnlocked = false;
+  let pendingStart = false;
+  let pendingSteadyStart = false;
+
+  function unlockAudioOnce(){
+    if(audioUnlocked) return;
+    audioUnlocked = true;
+
+    if(pendingStart){
+      pendingStart = false;
+      playSound("Start", { allowOverlap:false, maskSteady:false });
+    }
+    if(pendingSteadyStart){
+      pendingSteadyStart = false;
+      startSteady();
+    }
+  }
+  window.addEventListener("pointerdown", unlockAudioOnce, { once:true });
+  window.addEventListener("keydown", unlockAudioOnce, { once:true });
+
+  function hardStopAudio(audio){
+    if(!audio) return;
+    try { audio.pause(); } catch {}
+    try { audio.currentTime = 0; } catch {}
+  }
+
+  function stopAllSfx(){
+    for(const a of activeNonSteady) hardStopAudio(a);
+    activeNonSteady.clear();
+
+    for(const arr of audioPool.values()){
+      for(const a of arr){
+        if(a && !a.paused) hardStopAudio(a);
+      }
+    }
+    for(const a of monoAudio.values()){
+      if(a && !a.paused) hardStopAudio(a);
+    }
+  }
+
+  function startSteady(){
+    if(gameEndedAudio || !steadyEnabled) return;
+    if(steadyAudio.ended) {
+      try { steadyAudio.currentTime = 0; } catch {}
+    }
+    if(steadyAudio.paused){
+      steadyAudio.volume = 1.0;
+      steadyAudio.play().catch(()=>{ pendingSteadyStart = true; });
+    }
+  }
+
+  function stopSteadyImmediate(){
+    try { steadyAudio.pause(); } catch {}
+    try { steadyAudio.currentTime = 0; } catch {}
+  }
+
+  function maskRestartSteady(){
+    if(gameEndedAudio || !steadyEnabled) return;
+    startSteady();
+    setTimeout(() => {
+      if(gameEndedAudio || !steadyEnabled) return;
+      try { steadyAudio.currentTime = 0; } catch {}
+      if(steadyAudio.paused){
+        steadyAudio.play().catch(()=>{});
+      }
+    }, 60);
+  }
+
+  function playSound(key, { allowOverlap=true, maskSteady=true, forceAfterEnd=false } = {}){
+    if(gameEndedAudio && !forceAfterEnd && key !== "End") return;
+
+    const file = SOUND_FILES[key];
+    if(!file) return;
+
+    if(monoKeys.has(key)){
+      let a = monoAudio.get(key);
+      if(!a){
+        a = new Audio(file);
+        monoAudio.set(key, a);
+      }
+      hardStopAudio(a);
+      a.volume = 1.0;
+
+      activeNonSteady.add(a);
+      const cleanup = () => activeNonSteady.delete(a);
+      a.addEventListener("ended", cleanup, { once:true });
+      a.addEventListener("pause", cleanup, { once:true });
+
+      a.play().catch(()=>{});
+      if(maskSteady) maskRestartSteady();
+      return;
+    }
+
+    if(key === "End"){
+      playEndMusicOnly();
+      return;
+    }
+
+    if(key === "Start"){
+      const a = new Audio(file);
+      a.volume = 1.0;
+      activeNonSteady.add(a);
+      const cleanup = () => activeNonSteady.delete(a);
+      a.addEventListener("ended", cleanup, { once:true });
+      a.addEventListener("pause", cleanup, { once:true });
+      a.play().catch(()=>{ pendingStart = true; });
+      return;
+    }
+
+    let a;
+    if(!allowOverlap){
+      a = new Audio(file);
+    } else {
+      const pool = audioPool.get(key) || [];
+      a = pool.find(x => x.paused || x.ended);
+      if(!a){
+        a = new Audio(file);
+        pool.push(a);
+        audioPool.set(key, pool);
+      }
+    }
+
+    a.currentTime = 0;
+    a.volume = 1.0;
+
+    activeNonSteady.add(a);
+    const cleanup = () => activeNonSteady.delete(a);
+    a.addEventListener("ended", cleanup, { once:true });
+    a.addEventListener("pause", cleanup, { once:true });
+
+    a.play().catch(()=>{});
+    if(maskSteady) maskRestartSteady();
+  }
+
+  function playEndMusicOnly({ stopOthers = true } = {}){
+    gameEndedAudio = true;
+    steadyEnabled = false;
+    stopSteadyImmediate();
+
+    if(stopOthers) stopAllSfx();
+
+    const end = new Audio(SOUND_FILES.End);
+    end.volume = 1.0;
+    end.play().catch(()=>{});
+  }
+
+  function endGameWithScoringSounds(scoringType){
+    if(gameEndedAudio) return;
+
+    steadyEnabled = false;
+    stopSteadyImmediate();
+    stopAllSfx();
+
+    if(scoringType === "TD"){
+      playSound("Touchdown", { forceAfterEnd:true });
+      playSound("BigCheer", { forceAfterEnd:true });
+    } else if(scoringType === "FG"){
+      playSound("Itsgood", { forceAfterEnd:true });
+      playSound("BigCheer", { forceAfterEnd:true });
+    } else if(scoringType === "SAFETY"){
+      playSound("CrowdOoh", { forceAfterEnd:true });
+    }
+
+    playEndMusicOnly({ stopOthers: false });
+  }
+
+  function startGameAudio(){
+    gameEndedAudio = false;
+    steadyEnabled = true;
+    playSound("Start", { allowOverlap:false, maskSteady:false });
+    startSteady();
+  }
+
+  function playFirstDownSounds(){
+    playSound("FirstDown");
+    playSound("MediumCheer");
+  }
+  function playThirdDownHorn(){
+    playSound("PatriotsHorn");
+  }
+  function playYardageCheer(yards){
+    if(yards >= 30) playSound("BigCheer");
+    else if(yards >= 5 && yards <= 25) playSound("MediumCheer");
+  }
+
+  function playEventSound(type, { yards=0 } = {}){
+    if(type === "TD"){ playSound("Touchdown"); playSound("BigCheer"); return; }
+    if(type === "FG"){ playSound("Itsgood"); playSound("BigCheer"); return; }
+    if(type === "TURNOVER" || type === "NO_GAIN_OR_NEG"){ playSound("CrowdOoh"); return; }
+    if(type === "INTERCEPTION_OR_COP"){ playSound("Interception"); return; }
+    if(type === "PLAY"){ playYardageCheer(yards); return; }
+    if(type === "END"){ playSound("End", { maskSteady:false }); return; }
+  }
+
+  /********************
+   * Cards + chart
+   ********************/
+  const RANKS = ["2","3","4","5","6","7","8","9","T","J","Q","K","A"];
+  const SUITS = [
+    { s:"♠", color:"black" },
+    { s:"♥", color:"red"   },
+    { s:"♦", color:"red"   },
+    { s:"♣", color:"black" }
+  ];
+
+  const OFF_NAMES = {
+    "2":"Power Run","3":"Draw","4":"Counter (misdirection)","5":"Bootleg","6":"Sweep",
+    "7":"Run/Pass Option","8":"Screen","9":"Hitch","T":"Curl","J":"Slant","Q":"Fade",
+    "K":"Flea Flicker","A":"Bomb"
+  };
+
+  const CHART = {
+    "2":{"2":0,"3":0,"4":0,"5":0,"6":5,"7":5,"8":5,"9":5,"T":5,"J":5,"Q":10,"K":10,"A":10},
+    "3":{"2":0,"3":0,"4":0,"5":0,"6":5,"7":0,"8":5,"9":5,"T":10,"J":10,"Q":10,"K":10,"A":10},
+    "4":{"2":0,"3":0,"4":0,"5":0,"6":0,"7":5,"8":5,"9":5,"T":10,"J":10,"Q":10,"K":15,"A":20},
+    "5":{"2":10,"3":5,"4":0,"5":0,"6":0,"7":5,"8":10,"9":10,"T":10,"J":15,"Q":20,"K":25,"A":30},
+    "6":{"2":10,"3":10,"4":5,"5":0,"6":0,"7":0,"8":5,"9":5,"T":10,"J":10,"Q":20,"K":20,"A":20},
+    "7":{"2":20,"3":10,"4":5,"5":5,"6":0,"7":"TO","8":0,"9":10,"T":10,"J":15,"Q":20,"K":25,"A":30},
+    "8":{"2":20,"3":20,"4":5,"5":0,"6":0,"7":0,"8":0,"9":5,"T":10,"J":15,"Q":20,"K":25,"A":30},
+    "9":{"2":20,"3":20,"4":10,"5":5,"6":5,"7":0,"8":0,"9":0,"T":0,"J":5,"Q":20,"K":25,"A":30},
+    "T":{"2":20,"3":20,"4":15,"5":15,"6":10,"7":10,"8":5,"9":0,"T":0,"J":0,"Q":10,"K":20,"A":30},
+    "J":{"2":35,"3":30,"4":25,"5":20,"6":15,"7":10,"8":5,"9":0,"T":0,"J":0,"Q":15,"K":25,"A":30},
+    "Q":{"2":40,"3":40,"4":40,"5":30,"6":20,"7":10,"8":0,"9":0,"T":0,"J":0,"Q":0,"K":0,"A":0},
+    "K":{"2":0,"3":"TD","4":0,"5":40,"6":0,"7":40,"8":0,"9":30,"T":0,"J":0,"Q":-10,"K":"INT","A":-10},
+    "A":{"2":"TD","3":0,"4":"TD","5":0,"6":60,"7":0,"8":-5,"9":-5,"T":-10,"J":"INT*","Q":"INT*","K":"INT*","A":"INT*"}
+  };
+
+  /********************
+   * State + helpers
+   ********************/
+  const state = {
+    phase: "idle",
+    deck: [],
+    hands: {1:[],2:[]},
+    score: {1:21,2:21},
+
+    possession: 1,
+    ballPos: 50,
+    los: 50,
+    down: 1,
+    toGo: 10,
+    firstDownLine: 60,
+
+    gameOver: false,
+    possessionsHad: {1:0,2:0},
+    suddenDeath: false,
+    openingDriveTeam: null,
+    openingDriveActive: true,
+
+    lastSnap: null,
+    hoverOffRank: null,
+
+    animLock: false,
+    endzoneFlash: null,
+
+    nextGridbotsFgEarliestAt: 0,
+    gridbotsFgCooldownUntil: 0,
+
+    lastCardFgTeam: null
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+  const randInt = (n)=>Math.floor(Math.random()*n);
+
+  const RANK_VAL = { "2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":11,"Q":12,"K":13,"A":14 };
+  const VAL_RANK = Object.fromEntries(Object.entries(RANK_VAL).map(([k,v])=>[v,k]));
+
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j=randInt(i+1);
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function makeDeck(){
+    let id=1;
+    const d=[];
+    for(const r of RANKS){
+      for(const suit of SUITS){
+        d.push({id:id++, r, suitSymbol:suit.s, suitColor:suit.color});
+      }
+    }
+    return shuffle(d);
+  }
+
+  function logRow(tagClass, tagText, html){
+    const el=document.createElement("div");
+    el.className="row";
+    el.innerHTML = `<span class="tag ${tagClass}">${tagText}</span>${html}`;
+    $("log").prepend(el);
+  }
+
+  function offenseDir(team){ return team===1 ? +1 : -1; }
+  function inFGRange(team){ return (team===1) ? state.ballPos >= 70 : state.ballPos <= 30; }
+  function bothTeamsPossessed(){ return state.possessionsHad[1] >= 1 && state.possessionsHad[2] >= 1; }
+  function isGridbotsOwnSide(){ return state.possession === 2 && state.ballPos > 50; }
+
+  function describeYard(pos){
+    const p=clamp(pos,0,100);
+    return (p<=50) ? p : (100-p);
+  }
+
+  function noCardsRemain(){
+    return state.deck.length===0 && state.hands[1].length===0 && state.hands[2].length===0;
+  }
+
+  function fgWouldChangeOutcome(team){
+    const other = team===1 ? 2 : 1;
+    const after = state.score[team] + 3;
+    return (state.score[team] === state.score[other] && after > state.score[other]) ||
+           (state.score[team] <  state.score[other] && after > state.score[other]);
+  }
+
+  function dealEvenlyToTarget(targetHandSize){
+    while(state.hands[1].length < targetHandSize &&
+          state.hands[2].length < targetHandSize &&
+          state.deck.length >= 2){
+      state.hands[1].push(state.deck.pop());
+      state.hands[2].push(state.deck.pop());
+    }
+    if(state.deck.length === 1){
+      state.deck.pop();
+      logRow("warn","DECK", `1 card remained in the deck and was discarded to keep hands even.`);
+    }
+  }
+  function replenishBothEven(target=5){ dealEvenlyToTarget(target); }
+
+  function fmtOutcome(out){
+    if(typeof out === "number"){
+      if(out===0) return "0";
+      return out>0 ? `+${out}` : `${out}`;
+    }
+    return out;
+  }
+  function outcomeClass(out){
+    if(typeof out === "number"){
+      if(out>0) return "outGood";
+      if(out<0) return "outBad";
+      return "outWarn";
+    }
+    if(out==="TD") return "outGood";
+    if(out==="TO"||out==="INT"||out==="INT*") return "outBad";
+    return "outWarn";
+  }
+  function downOrdinal(d){
+    if(d===1) return "1st";
+    if(d===2) return "2nd";
+    if(d===3) return "3rd";
+    return "4th";
+  }
+
+  /********************
+   * Flashing
+   ********************/
+  function scoringSideForTeam(team){ return team === 1 ? "right" : "left"; }
+
+  function startEndzoneFlash(side, durationMs=3000){
+    state.animLock = true;
+    state.endzoneFlash = { side, endsAt: Date.now() + durationMs };
+
+    const el = side === "left" ? $("endzoneLeft") : $("endzoneRight");
+    const other = side === "left" ? $("endzoneRight") : $("endzoneLeft");
+    other.classList.remove("flashOn");
+    el.classList.remove("flashOn");
+
+    let on = false;
+    const interval = setInterval(() => {
+      on = !on;
+      if(on) el.classList.add("flashOn");
+      else el.classList.remove("flashOn");
+      render();
+    }, 500);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      el.classList.remove("flashOn");
+      state.endzoneFlash = null;
+      state.animLock = false;
+      render();
+      cpuMaybeAct();
+    }, durationMs);
+  }
+
+  function startWinnerFlash(team, durationMs=7000){
+    const el = team === 1 ? $("team1Box") : $("team2Box");
+    const other = team === 1 ? $("team2Box") : $("team1Box");
+    other.classList.remove("winFlash");
+    el.classList.remove("winFlash");
+
+    let on = false;
+    const interval = setInterval(() => {
+      on = !on;
+      if(on) el.classList.add("winFlash");
+      else el.classList.remove("winFlash");
+    }, 500);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      el.classList.remove("winFlash");
+    }, durationMs);
+  }
+
+  /********************
+   * End-of-game + possession-end rules
+   ********************/
+  function endGame(reason, { scoringEndType=null } = {}){
+    if(state.gameOver) return;
+    state.gameOver = true;
+    state.phase = "final";
+    logRow("warn","FINAL", reason);
+
+    if(state.score[1] !== state.score[2]){
+      startWinnerFlash(state.score[1] > state.score[2] ? 1 : 2, 7000);
+    }
+
+    if(scoringEndType) endGameWithScoringSounds(scoringEndType);
+    else playEventSound("END");
+
+    render();
+  }
+
+  function evaluateEndOfGameAtPossessionEnd(){
+    if(!bothTeamsPossessed()) return { ended:false };
+    if(state.score[1] !== state.score[2]){
+      endGame(`Both teams have possessed. Final score: ${state.score[1]}–${state.score[2]}.`);
+      return { ended:true };
+    }
+    if(!state.suddenDeath){
+      state.suddenDeath = true;
+      logRow("warn","OT", "<strong>Sudden death</strong>: next score wins.");
+    }
+    return { ended:false };
+  }
+
+  function kickoffTo(team){
+    const spot = (team===1) ? 20 : 80;
+    startPossession(team, spot, { isChangeOfPossession:false });
+  }
+
+  function startPossession(team, spot, { isChangeOfPossession=false } = {}){
+    state.possession = team;
+    state.ballPos = clamp(spot,0,100);
+    state.los = state.ballPos;
+    state.down = 1;
+    state.toGo = 10;
+    state.firstDownLine = clamp(state.ballPos + offenseDir(team)*10, 0, 100);
+
+    state.possessionsHad[team] += 1;
+
+    if(state.openingDriveTeam === null){
+      state.openingDriveTeam = team;
+      state.openingDriveActive = true;
+    } else {
+      state.openingDriveActive = false;
+    }
+
+    if(isChangeOfPossession && team === 2){
+      state.nextGridbotsFgEarliestAt = Date.now() + 3000;
+    } else if(team !== 2){
+      state.nextGridbotsFgEarliestAt = 0;
+    }
+
+    state.lastCardFgTeam = null;
+
+    render();
+    cpuMaybeAct();
+  }
+
+  /********************
+   * Scoring + possession changes
+   ********************/
+  function applySafety(scoringDefense){
+    state.score[scoringDefense] += 2;
+    logRow("good","SAFETY", `Safety! ${tn(scoringDefense)} +2.`);
+    playEventSound("NO_GAIN_OR_NEG");
+    startEndzoneFlash(scoringSideForTeam(scoringDefense), 3000);
+
+    if(state.openingDriveActive && scoringDefense !== state.openingDriveTeam){
+      endGame("Defensive safety on the opening drive ends the game.", { scoringEndType:"SAFETY" });
+      return true;
+    }
+    if(state.suddenDeath){
+      endGame(`Safety by ${tn(scoringDefense)} wins (sudden death).`, { scoringEndType:"SAFETY" });
+      return true;
+    }
+
+    evaluateEndOfGameAtPossessionEnd();
+    if(state.gameOver) return true;
+
+    replenishBothEven(5);
+    startPossession(scoringDefense, scoringDefense===1 ? 20 : 80, { isChangeOfPossession:true });
+    return true;
+  }
+
+  function doTouchdown(team){
+    state.score[team] += 7;
+    logRow("good","TD", `Touchdown ${tn(team)} +7.`);
+    playEventSound("TD");
+    startEndzoneFlash(scoringSideForTeam(team), 3000);
+
+    if(state.suddenDeath){
+      endGame(`Touchdown by ${tn(team)} wins (sudden death).`, { scoringEndType:"TD" });
+      return;
+    }
+
+    const { ended } = evaluateEndOfGameAtPossessionEnd();
+    if(ended || state.gameOver) {
+      if(!gameEndedAudio) endGameWithScoringSounds("TD");
+      return;
+    }
+
+    if(noCardsRemain()){
+      endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]}.`, { scoringEndType:"TD" });
+      return;
+    }
+
+    replenishBothEven(5);
+    kickoffTo(team===1 ? 2 : 1);
+  }
+
+  function doFieldGoal(team){
+    if(state.gameOver) return;
+    if(!inFGRange(team)) return;
+
+    state.score[team] += 3;
+    logRow("good","FG", `${tn(team)} field goal +3.`);
+    playEventSound("FG");
+    startEndzoneFlash(scoringSideForTeam(team), 3000);
+
+    if(state.suddenDeath){
+      endGame(`Field goal by ${tn(team)} wins (sudden death).`, { scoringEndType:"FG" });
+      return;
+    }
+
+    if (bothTeamsPossessed() && state.score[1] !== state.score[2]) {
+      endGame(`Both teams have possessed. Final score: ${state.score[1]}–${state.score[2]}.`, { scoringEndType: "FG" });
+      return;
+    }
+
+    const { ended } = evaluateEndOfGameAtPossessionEnd();
+    if(ended || state.gameOver) return;
+
+    if(noCardsRemain()){
+      endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]}.`, { scoringEndType:"FG" });
+      return;
+    }
+
+    replenishBothEven(5);
+    kickoffTo(team===1 ? 2 : 1);
+  }
+
+  function turnoverTo(newOffenseTeam, spot, reasonHtml){
+    logRow("bad","TO", reasonHtml);
+    playEventSound("TURNOVER");
+
+    evaluateEndOfGameAtPossessionEnd();
+    if(state.gameOver) return;
+
+    if(noCardsRemain()){
+      if(state.score[1] === state.score[2]){
+        endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]} (tie).`);
+      } else {
+        endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]}.`);
+      }
+      return;
+    }
+
+    replenishBothEven(5);
+    startPossession(newOffenseTeam, spot, { isChangeOfPossession:true });
+  }
+
+  function doPunt(team){
+    if(state.phase !== "playing" || state.gameOver) return;
+
+    const off = team;
+    const dir = offenseDir(off);
+    const from = state.ballPos;
+    const to = clamp(from + dir*40, 0, 100);
+
+    const recv = off===1 ? 2 : 1;
+    let newSpot = to;
+
+    if(recv===1 && newSpot<=0) newSpot=20;
+    if(recv===2 && newSpot>=100) newSpot=80;
+
+    logRow("warn","PUNT", `${tn(off)} punts. Ball to <strong>${describeYard(newSpot)}</strong>.`);
+    playEventSound("INTERCEPTION_OR_COP");
+
+    evaluateEndOfGameAtPossessionEnd();
+    if(state.gameOver) return;
+
+    if(noCardsRemain()){
+      if(state.score[1] === state.score[2]){
+        endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]} (tie).`);
+      } else {
+        endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]}.`);
+      }
+      return;
+    }
+
+    replenishBothEven(5);
+    startPossession(recv, newSpot, { isChangeOfPossession:true });
+  }
+
+  /********************
+   * Last-card FG hook
+   ********************/
+  function maybeAllowLastCardFieldGoal(){
+    if(state.gameOver || state.phase!=="playing") return;
+    if(!(state.deck.length===0 && state.hands[1].length===0 && state.hands[2].length===0)) return;
+    if(state.lastCardFgTeam) return;
+
+    const off = state.possession;
+    if(inFGRange(off) && fgWouldChangeOutcome(off)){
+      state.lastCardFgTeam = off;
+      logRow("warn","LAST", `Last card played. ${tn(off)} may kick a field goal to take the lead.`);
+      render();
+      cpuMaybeAct();
+      return;
+    }
+
+    if(state.score[1] === state.score[2]){
+      endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]} (tie).`);
+    } else {
+      endGame(`No cards remain. Final score: ${state.score[1]}–${state.score[2]}.`);
+    }
+  }
+
+  /********************
+   * Gridbots AI (same as prior working build)
+   ********************/
+  function lastCardPlayForGridbotsNow(){
+    return state.deck.length === 0 && state.hands[2].length === 1 && state.hands[1].length === 1;
+  }
+
+  function highestCardInHand(hand){ return [...hand].sort((a,b)=>RANK_VAL[b.r]-RANK_VAL[a.r])[0]; }
+  function lowestCardInHand(hand){ return [...hand].sort((a,b)=>RANK_VAL[a.r]-RANK_VAL[b.r])[0]; }
+
+  function pickRandomFromRange(hand, loRank, hiRank, { avoidBomb=true } = {}){
+    const lo = RANK_VAL[loRank], hi = RANK_VAL[hiRank];
+    let choices = hand.filter(c => {
+      const v = RANK_VAL[c.r];
+      if(v < lo || v > hi) return false;
+      if(avoidBomb && c.r==="A") return false;
+      return true;
+    });
+    if(choices.length===0 && avoidBomb){
+      if(hand.length===1 && hand[0].r==="A") return hand[0];
+    }
+    if(choices.length===0) return null;
+    return choices[randInt(choices.length)];
+  }
+
+  function pickClosestToTarget(hand, target, { avoidBomb=true } = {}){
+    let best = null;
+    let bestD = Infinity;
+    for(const c of hand){
+      if(avoidBomb && c.r==="A" && !(hand.length===1)) continue;
+      const d = Math.abs(RANK_VAL[c.r] - target);
+      if(d < bestD){
+        bestD = d;
+        best = c;
+      }
+    }
+    return best || hand[0];
+  }
+
+  function distToGoal(team){
+    return team === 1 ? (100 - clamp(state.ballPos,0,100)) : clamp(state.ballPos,0,100);
+  }
+
+  function ruleBasedOffenseSpec(down, toGo){
+    const t = toGo;
+    const short = (t <= 5);
+
+    if(down===1){
+      if(!short){
+        return { type:"range", lo:"6", hi:"J", fallback:{ type:"closest", target:5 }, avoidBomb:true };
+      }
+      return { type:"range", lo:"4", hi:"7", fallback:{ type:"lowest" }, avoidBomb:true };
+    }
+    if(down===2){
+      if(!short){
+        return { type:"range", lo:"8", hi:"Q", fallback:{ type:"closest", target:7 }, avoidBomb:true };
+      }
+      return { type:"range", lo:"4", hi:"7", fallback:{ type:"lowest" }, avoidBomb:true };
+    }
+    if(down===3){
+      if(!short){
+        return { type:"range", lo:"T", hi:"K", fallback:{ type:"closest", target:9.75 }, avoidBomb:true };
+      }
+      return { type:"range", lo:"2", hi:"4", fallback:{ type:"lowest" }, avoidBomb:true };
+    }
+    return { type:"range", lo:"6", hi:"J", fallback:{ type:"closest", target:7 }, avoidBomb:true };
+  }
+
+  function expectedOutcomeValue(offRank, defRank){
+    const out = CHART[offRank][defRank];
+    if(typeof out === "number") return out;
+    if(out === "TD") return 70;
+    if(out === "TO") return -25;
+    if(out === "INT" || out === "INT*") return -30;
+    return 0;
+  }
+
+  function cpuPickOffenseCardForGridbots(handOff){
+    if(lastCardPlayForGridbotsNow()) return highestCardInHand(handOff);
+
+    const dGoal = distToGoal(2);
+    const closeRange = dGoal <= 15;
+
+    const spec = ruleBasedOffenseSpec(state.down, state.toGo);
+
+    let picked = null;
+    if(spec.type==="range"){
+      picked = pickRandomFromRange(handOff, spec.lo, spec.hi, { avoidBomb: spec.avoidBomb && !closeRange });
+      if(!picked){
+        if(spec.fallback?.type==="closest"){
+          picked = pickClosestToTarget(handOff, spec.fallback.target, { avoidBomb: true && !closeRange });
+        } else if(spec.fallback?.type==="lowest"){
+          picked = lowestCardInHand(handOff);
+        }
+      }
+    } else {
+      picked = pickClosestToTarget(handOff, 7, { avoidBomb:true });
+    }
+
+    if(closeRange && picked && (picked.r==="Q" || picked.r==="K" || picked.r==="A")){
+      const safer = handOff.filter(c => !["Q","K","A"].includes(c.r));
+      if(safer.length>0) picked = safer[randInt(safer.length)];
+    }
+
+    return picked || handOff[randInt(handOff.length)];
+  }
+
+  function cpuPickDefenseCardForGridbots(handDef){
+    const spec = ruleBasedOffenseSpec(state.down, state.toGo);
+
+    let predicted = [];
+    if(spec.type==="range"){
+      const lo = RANK_VAL[spec.lo], hi = RANK_VAL[spec.hi];
+      for(let v=lo; v<=hi; v++){
+        const r = VAL_RANK[v];
+        if(!r) continue;
+        if(spec.avoidBomb && r==="A") continue;
+        predicted.push(r);
+      }
+      if(predicted.length===0 && spec.fallback?.type==="closest"){
+        const t = spec.fallback.target;
+        const nearest = Object.keys(RANK_VAL).sort((a,b)=>Math.abs(RANK_VAL[a]-t)-Math.abs(RANK_VAL[b]-t))[0];
+        predicted = [nearest];
+      }
+      if(predicted.length===0) predicted = ["7","8","9"];
+    } else if(spec.type==="closest"){
+      const t = spec.target;
+      const nearest = Object.keys(RANK_VAL).sort((a,b)=>Math.abs(RANK_VAL[a]-t)-Math.abs(RANK_VAL[b]-t))[0];
+      predicted = [nearest];
+    } else {
+      predicted = ["7","8","9"];
+    }
+
+    let best = handDef[0];
+    let bestScore = Infinity;
+    for(const dCard of handDef){
+      let exp = 0;
+      for(const oRank of predicted){
+        exp += expectedOutcomeValue(oRank, dCard.r);
+      }
+      exp /= predicted.length;
+      if(exp < bestScore){
+        bestScore = exp;
+        best = dCard;
+      }
+    }
+    return best;
+  }
+
+  function cpuWillLoseGuaranteedIfDoesNotGoForItOn4th(){
+    const gridTrailing = state.score[2] < state.score[1];
+    if(!gridTrailing) return false;
+    const wouldEndGameIfPossessionEnds = (state.possessionsHad[1] >= 1 && state.possessionsHad[2] >= 1);
+    return wouldEndGameIfPossessionEnds;
+  }
+
+  function cpuHasImmediateWinningFG(){
+    if(state.possession !== 2) return false;
+    if(state.gameOver || state.phase !== "playing") return false;
+    if(!inFGRange(2)) return false;
+    const tied = state.score[1] === state.score[2];
+    const notFirstPossession = (state.possessionsHad[1] >= 1 && state.possessionsHad[2] >= 1);
+    return tied && notFirstPossession;
+  }
+
+  function cpuFgWouldGuaranteeLossIfKickedNow(){
+    if(!(state.possessionsHad[1] >= 1 && state.possessionsHad[2] >= 1)) return false;
+    if(state.suddenDeath) return false;
+    const afterFG = state.score[2] + 3;
+    return afterFG < state.score[1];
+  }
+
+  function cpuFgDelayActive(){
+    const t = Date.now();
+    return t < (state.nextGridbotsFgEarliestAt || 0) || t < (state.gridbotsFgCooldownUntil || 0);
+  }
+
+  function scheduleGridbotsFgKick(label){
+    const now = Date.now();
+    const earliest = Math.max(
+      now + 3000,
+      state.nextGridbotsFgEarliestAt || 0,
+      state.gridbotsFgCooldownUntil || 0
+    );
+    state.gridbotsFgCooldownUntil = earliest;
+
+    const ms = Math.max(0, earliest - now);
+    logRow("warn","AI", `${label} <strong>${Math.ceil(ms/1000)}s</strong>`);
+    setTimeout(() => {
+      if(state.gameOver || state.phase !== "playing") return;
+      if(state.possession !== 2) return;
+      if(!inFGRange(2)) return;
+      if(cpuFgWouldGuaranteeLossIfKickedNow()) return;
+      doFieldGoal(2);
+    }, ms + 10);
+
+    render();
+  }
+
+  function playCpuCardAsOffense(cpuCard){
+    if(!cpuCard || state.possession !== 2 || state.phase!=="playing" || state.gameOver || state.animLock) return;
+    state._forcedCpuOffenseCard = cpuCard;
+    logRow("warn","AI", `${tn(2)} (rule) will use <strong>${face(cpuCard)}</strong>. Choose your defense card.`);
+    render();
+  }
+
+  function cpuMaybeAct(){
+    if(state.phase !== "playing" || state.gameOver) return;
+    if(state.animLock) return;
+    if(state.possession !== 2) return;
+
+    // Opening drive + 4th down + Gridbots on their own side => ALWAYS punt.
+    if(state.openingDriveActive && state.down === 4 && isGridbotsOwnSide()){
+      logRow("warn","AI", `Opening drive: ${tn(2)} punts on 4th down from its own side.`);
+      doPunt(2);
+      return;
+    }
+
+    if(state.lastCardFgTeam === 2){
+      scheduleGridbotsFgKick(`Last-card situation: ${tn(2)} kicks a field goal in`);
+      state.lastCardFgTeam = null;
+      return;
+    }
+
+    if(cpuHasImmediateWinningFG()){
+      if(cpuFgDelayActive()){
+        const ms = Math.max(0, Math.max(state.nextGridbotsFgEarliestAt||0, state.gridbotsFgCooldownUntil||0) - Date.now());
+        logRow("warn","AI", `${tn(2)} is lining up for the winning field goal… <strong>${Math.ceil(ms/1000)}s</strong>`);
+        setTimeout(cpuMaybeAct, ms + 20);
+        render();
+        return;
+      }
+      scheduleGridbotsFgKick(`${tn(2)} will kick the winning field goal in`);
+      return;
+    }
+
+    if(state.down !== 4) return;
+
+    const pos = state.ballPos;
+    const toGo = state.toGo;
+
+    if(cpuWillLoseGuaranteedIfDoesNotGoForItOn4th()){
+      if(toGo >= 10){
+        const pick = pickClosestToTarget(state.hands[2], 13, { avoidBomb:true });
+        playCpuCardAsOffense(pick);
+      } else {
+        playCpuCardAsOffense(lowestCardInHand(state.hands[2]));
+      }
+      return;
+    }
+
+    if(pos >= 50){ doPunt(2); return; }
+
+    if(pos <= 30){
+      if(cpuFgWouldGuaranteeLossIfKickedNow()){
+        if(toGo >= 10){
+          const pick = pickRandomFromRange(state.hands[2], "T","K", { avoidBomb:true })
+                    || pickClosestToTarget(state.hands[2], 9.75, { avoidBomb:true });
+          playCpuCardAsOffense(pick);
+          return;
+        } else {
+          const pick = pickRandomFromRange(state.hands[2], "2","4", { avoidBomb:true }) || lowestCardInHand(state.hands[2]);
+          playCpuCardAsOffense(pick);
+          return;
+        }
+      }
+      scheduleGridbotsFgKick(`${tn(2)} prepares a field goal… in`);
+      return;
+    }
+
+    if(pos >= 35 && pos <= 45){
+      if(toGo >= 10){
+        const pick = pickRandomFromRange(state.hands[2], "8","K", { avoidBomb:true })
+                  || pickClosestToTarget(state.hands[2], 7, { avoidBomb:true });
+        playCpuCardAsOffense(pick);
+        return;
+      } else {
+        const pick = pickRandomFromRange(state.hands[2], "2","7", { avoidBomb:true }) || lowestCardInHand(state.hands[2]);
+        playCpuCardAsOffense(pick);
+        return;
+      }
+    }
+
+    doPunt(2);
+  }
+
+  /********************
+   * Play resolution
+   ********************/
+  function face(card){
+    const f = (card.r==="T") ? "10" : card.r;
+    return `${f}${card.suitSymbol}`;
+  }
+  function discardCard(team, card){
+    const idx = state.hands[team].findIndex(c=>c.id===card.id);
+    if(idx>=0) state.hands[team].splice(idx,1);
+  }
+
+  function playCardNow(userCard){
+    if(state.phase !== "playing" || state.gameOver) return;
+    if(state.animLock) { logRow("warn","WAIT", "Play locked during scoring animation."); return; }
+    if(!userCard) return;
+    if(!state.hands[1].some(c => c.id === userCard.id)) return;
+
+    const off = state.possession;
+    const def = off===1 ? 2 : 1;
+
+    let cpuCard;
+    if(off === 1){
+      cpuCard = cpuPickDefenseCardForGridbots(state.hands[2]);
+    } else {
+      cpuCard = state._forcedCpuOffenseCard || cpuPickOffenseCardForGridbots(state.hands[2]);
+      state._forcedCpuOffenseCard = null;
+    }
+
+    const offCard = (off===1) ? userCard : cpuCard;
+    const defCard = (off===1) ? cpuCard : userCard;
+
+    discardCard(1, userCard);
+    discardCard(2, cpuCard);
+
+    const outcome = CHART[offCard.r][defCard.r];
+    const offName = OFF_NAMES[offCard.r] || "";
+    state.lastSnap = { offRank: offCard.r, defRank: defCard.r, outcome, offName };
+
+    logRow("warn","SNAP",
+      `${tn(off)} OFF <strong>${face(offCard)}</strong> vs ${tn(def)} DEF <strong>${face(defCard)}</strong> → <strong>${fmtOutcome(outcome)}</strong>.`
+    );
+
+    const from = state.ballPos;
+    const dir = offenseDir(off);
+
+    if(outcome === "TD"){ renderChart(); doTouchdown(off); return; }
+
+    if(outcome === "TO"){
+      renderChart();
+      turnoverTo(def, state.ballPos, `Turnover (TO). ${tn(def)} ball at <strong>${describeYard(state.ballPos)}</strong>.`);
+      return;
+    }
+
+    if(outcome === "INT" || outcome === "INT*"){
+      playEventSound("INTERCEPTION_OR_COP");
+      renderChart();
+      if(outcome === "INT*"){
+        const spot = (def===1) ? 20 : 80;
+        turnoverTo(def, spot, `Interception touchback (INT*). ${tn(def)} ball at <strong>${describeYard(spot)}</strong>.`);
+      } else {
+        turnoverTo(def, state.ballPos, `Interception (INT). ${tn(def)} ball at <strong>${describeYard(state.ballPos)}</strong>.`);
+      }
+      return;
+    }
+
+    const yards = Number(outcome);
+    if(yards <= 0) playEventSound("NO_GAIN_OR_NEG");
+    else playEventSound("PLAY", { yards });
+
+    const to = clamp(from + dir*yards, -20, 120);
+
+    if(off===1 && to>=100){ renderChart(); doTouchdown(1); return; }
+    if(off===2 && to<=0){ renderChart(); doTouchdown(2); return; }
+
+    if(off===1 && to<=0){ renderChart(); applySafety(2); return; }
+    if(off===2 && to>=100){ renderChart(); applySafety(1); return; }
+
+    state.ballPos = clamp(to,0,100);
+    state.los = state.ballPos;
+
+    const crossed =
+      (off===1 && state.ballPos >= state.firstDownLine) ||
+      (off===2 && state.ballPos <= state.firstDownLine);
+
+    if(crossed){
+      logRow("good","1ST", `First down ${tn(off)}.`);
+      playFirstDownSounds();
+      replenishBothEven(5);
+
+      state.down = 1;
+      state.toGo = 10;
+      state.firstDownLine = clamp(state.ballPos + dir*10, 0, 100);
+      renderChart();
+      render();
+      maybeAllowLastCardFieldGoal();
+      cpuMaybeAct();
+      return;
+    }
+
+    state.down += 1;
+    state.toGo = (off===1)
+      ? clamp(state.firstDownLine - state.ballPos, 0, 100)
+      : clamp(state.ballPos - state.firstDownLine, 0, 100);
+
+    if(state.down === 3) playThirdDownHorn();
+
+    if(state.down >= 5){
+      playEventSound("INTERCEPTION_OR_COP");
+      renderChart();
+      turnoverTo(def, state.ballPos, `Turnover on downs. ${tn(def)} ball at <strong>${describeYard(state.ballPos)}</strong>.`);
+      return;
+    }
+
+    renderChart();
+    render();
+    maybeAllowLastCardFieldGoal();
+    cpuMaybeAct();
+  }
+
+  /********************
+   * Chart rendering (full)
+   ********************/
+  function renderChart(){
+    const hint = $("chartHint");
+    let offRank=null, defRank=null, out=null;
+    if(state.lastSnap){
+      offRank = state.lastSnap.offRank;
+      defRank = state.lastSnap.defRank;
+      out = state.lastSnap.outcome;
+      const nm = state.lastSnap.offName || "";
+      hint.textContent = `Last: ${offRank}${nm ? " ("+nm+")" : ""} vs ${defRank} → ${fmtOutcome(out)}`;
+    } else {
+      hint.textContent = "—";
+    }
+
+    const hover = state.hoverOffRank;
+
+    let html = `<table class="chart">
+      <colgroup>
+        <col class="offcol">
+        ${Array.from({length:13},()=>'<col class="defcol">').join("")}
+      </colgroup>
+      <thead><tr>
+      <th class="stickyCol">OFFENSE</th>`;
+
+    for(const d of RANKS){
+      const hi = (defRank && d===defRank) ? ' class="hiCol"' : "";
+      html += `<th${hi}>${d}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    for(const o of RANKS){
+      const rowHi = (offRank && o===offRank) ? " hiRow" : "";
+      const hoverHi = (hover && o===hover) ? " hoverRow" : "";
+      const name = OFF_NAMES[o] || "";
+      const rowNameHi = (offRank && o===offRank) ? " hiPlayName" : "";
+      html += `<tr class="${(rowHi + hoverHi).trim()}">`;
+      html += `<td class="stickyCol${rowNameHi}">${o}<span class="subname">${name}</span></td>`;
+      for(const d of RANKS){
+        const cellOut = CHART[o][d];
+        const cls=[];
+        if(defRank && d===defRank) cls.push("hiCol");
+        if(offRank && defRank && o===offRank && d===defRank) cls.push("hiCell");
+        html += `<td class="${cls.join(" ")}"><span class="${outcomeClass(cellOut)}">${fmtOutcome(cellOut)}</span></td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    $("chartBd").innerHTML = html;
+  }
+
+  /********************
+   * Hand + UI rendering
+   ********************/
+  function renderHand(hand){
+    const handEl = $("hand");
+    handEl.innerHTML = "";
+
+    const order = Object.fromEntries(RANKS.map((r,i)=>[r,i]));
+    const suitOrder = {"♠":0,"♥":1,"♦":2,"♣":3};
+    const cards = [...hand].sort((a,b)=>{
+      const dr = order[a.r]-order[b.r];
+      if(dr!==0) return dr;
+      return suitOrder[a.suitSymbol]-suitOrder[b.suitSymbol];
+    });
+
+    for(const c of cards){
+      const btn=document.createElement("button");
+      btn.className = "cardBtn " + (c.suitColor==="red" ? "cardRed" : "cardBlack");
+      btn.disabled = (state.phase!=="playing" || state.gameOver || state.animLock);
+      const faceStr = (c.r==="T") ? "10" : c.r;
+
+      btn.innerHTML = `
+        <div class="corner tl">${faceStr}${c.suitSymbol}</div>
+        <div>${faceStr}${c.suitSymbol}</div>
+        <div class="corner br">${faceStr}${c.suitSymbol}</div>
+      `;
+
+      btn.addEventListener("mouseenter", () => { state.hoverOffRank = c.r; renderChart(); });
+      btn.addEventListener("mouseleave", () => { state.hoverOffRank = null; renderChart(); });
+      btn.addEventListener("click", ()=> playCardNow(c));
+
+      handEl.appendChild(btn);
+    }
+  }
+
+  function setMiniStateGameLine(down, toGo, deckCount){
+    const ms = $("miniState");
+    ms.innerHTML = `${downOrdinal(down)} & ${toGo}  •  <span id="deckCount">Deck ${deckCount}</span>`;
+    const deckEl = document.getElementById("deckCount");
+    if(deckEl){
+      const shouldFlash = !state.gameOver && deckCount <= 5;
+      deckEl.classList.toggle("deckFlash", shouldFlash);
+    }
+  }
+
+  function render(){
+    $("t1Score").textContent = state.score[1];
+    $("t2Score").textContent = state.score[2];
+
+    $("team1Box").classList.toggle("hasBall", state.phase==="playing" && state.possession===1);
+    $("team2Box").classList.toggle("hasBall", state.phase==="playing" && state.possession===2);
+
+    const ballEl = $("ball");
+    const ballHidden = !!state.endzoneFlash || state.animLock;
+    ballEl.classList.toggle("hidden", ballHidden);
+
+    const btnP = $("btnPunt");
+    const btnF = $("btnFG");
+
+    if(state.phase === "idle"){
+      $("posMini").textContent = "Idle";
+      $("miniState").textContent = "Press New Game";
+      $("ballMini").textContent = "Ball: —";
+      $("handsMini").textContent = "Hands: P1 — · P2 —";
+      $("roleInline").textContent = "Press New Game";
+      $("selectHdr").textContent = "Select a card";
+      $("stMini").textContent = "—";
+
+      btnP.disabled = true;
+      btnF.disabled = true;
+
+      renderHand([]);
+      renderChart();
+
+      const map = (pos)=> 10 + (clamp(pos,0,100)*0.80);
+      $("ball").style.left = `${map(50)}%`;
+      $("los").style.left = `${map(50)}%`;
+      $("fd").style.left = `${map(60)}%`;
+      return;
+    }
+
+    $("posMini").textContent = state.gameOver ? "Final" : (state.suddenDeath ? "Sudden death" : "OT");
+    setMiniStateGameLine(state.down, state.toGo, state.deck.length);
+
+    $("ballMini").textContent = `Ball: ${describeYard(state.ballPos)}`;
+    $("handsMini").textContent = `Hands: ${tn(1)} ${state.hands[1].length} · ${tn(2)} ${state.hands[2].length}`;
+
+    const youRole = (state.possession===1) ? "OFFENSE" : "DEFENSE";
+    $("roleInline").textContent = (state.lastCardFgTeam===1 && state.possession===1)
+      ? "Last card: you may kick FG"
+      : `You are ${youRole}`;
+
+    $("selectHdr").textContent = (state.possession===1) ? "Select a card" : "Select a defense card";
+
+    const userCanSpecialTeamsBase = (state.possession === 1) && !state.gameOver && !state.animLock;
+
+    const userCanLastCardFG = userCanSpecialTeamsBase &&
+                              state.lastCardFgTeam===1 &&
+                              inFGRange(1) &&
+                              fgWouldChangeOutcome(1);
+
+    const userCanPunt = userCanSpecialTeamsBase && (state.lastCardFgTeam===null);
+    const userCanFG   = userCanSpecialTeamsBase && (
+      (!state.lastCardFgTeam && inFGRange(1)) || userCanLastCardFG
+    );
+
+    $("stMini").textContent = inFGRange(state.possession) ? "FG available" : "FG not available";
+
+    btnP.disabled = !userCanPunt;
+    btnF.disabled = !userCanFG;
+
+    renderHand(state.hands[1]);
+    renderChart();
+
+    const mapToField = (pos)=> 10 + (clamp(pos,0,100)*0.80);
+    $("ball").style.left = `${mapToField(state.ballPos)}%`;
+    $("los").style.left = `${mapToField(state.los)}%`;
+    $("fd").style.left = `${mapToField(state.firstDownLine)}%`;
+  }
+
+  /********************
+   * Yard labels
+   ********************/
+  function buildYardLabels(){
+    const field = $("field");
+    [...field.querySelectorAll(".yardLabel")].forEach(n=>n.remove());
+    for(let y=0; y<=100; y+=5){
+      const labelVal = (y<=50) ? y : (100-y);
+      const leftPct = 10 + (y * 0.80);
+
+      const top=document.createElement("div");
+      top.className="yardLabel";
+      top.style.left=`${leftPct}%`;
+      top.textContent=String(labelVal);
+      field.appendChild(top);
+
+      const bot=document.createElement("div");
+      bot.className="yardLabel bottom";
+      bot.style.left=`${leftPct}%`;
+      bot.textContent=String(labelVal);
+      field.appendChild(bot);
+    }
+  }
+
+  /********************
+   * User special teams
+   ********************/
+  function userPunt(){
+    if(state.possession !== 1) return;
+    if(state.animLock) return;
+    if(state.lastCardFgTeam) return;
+    doPunt(1);
+  }
+  function userFG(){
+    if(state.possession !== 1) return;
+    if(state.animLock) return;
+
+    if(state.lastCardFgTeam===1){
+      if(!(inFGRange(1) && fgWouldChangeOutcome(1))) return;
+      state.lastCardFgTeam = null;
+      doFieldGoal(1);
+      return;
+    }
+
+    doFieldGoal(1);
+  }
+
+  /********************
+   * Idle + New Game
+   ********************/
+  function resetToIdle(){
+    state.phase = "idle";
+    state.gameOver = false;
+
+    state.deck = [];
+    state.hands[1]=[];
+    state.hands[2]=[];
+
+    state.score[1]=21;
+    state.score[2]=21;
+
+    state.possession=1;
+    state.ballPos=50;
+    state.los=50;
+    state.down=1;
+    state.toGo=10;
+    state.firstDownLine=60;
+
+    state.possessionsHad[1]=0;
+    state.possessionsHad[2]=0;
+    state.suddenDeath=false;
+
+    state.openingDriveTeam=null;
+    state.openingDriveActive=true;
+
+    state.lastSnap=null;
+    state.hoverOffRank=null;
+
+    state.animLock=false;
+    state.endzoneFlash=null;
+
+    state.nextGridbotsFgEarliestAt = 0;
+    state.gridbotsFgCooldownUntil = 0;
+
+    state.lastCardFgTeam = null;
+    state._forcedCpuOffenseCard = null;
+
+    gameEndedAudio = false;
+    steadyEnabled = false;
+    stopAllSfx();
+    stopSteadyImmediate();
+
+    $("team1Box").classList.remove("winFlash");
+    $("team2Box").classList.remove("winFlash");
+    $("endzoneLeft").classList.remove("flashOn");
+    $("endzoneRight").classList.remove("flashOn");
+
+    $("log").innerHTML = "";
+
+    /* NEW: INSTRUCTIONS row (only before New Game). Must appear ABOVE TIP */
+    logRow("warn","INSTRUCTIONS",
+      `Click <a href="https://klemport.net/klemport/games/Overtime/OvertimeRules.pdf" target="_blank" rel="noopener noreferrer">here</a> for card game instructions.`
+    );
+
+    /* TIP row (your latest, with bold labels) */
+    logRow("warn","TIP",
+      `GRIDBOTS’ FOCUS<br>
+<b>1st down and 10 or more:</b> mid level cards<br>
+<b>2nd down and 10 or more:</b> mid to high cards<br>
+<b>3rd down and 10 or more:</b> high cards<br>
+<b>2nd down and 5:</b> mid low cards<br>
+<b>3rd down and 5:</b> low cards`
+    );
+
+    render();
+  }
+
+  function startNewGame(){
+    unlockAudioOnce();
+
+    gameEndedAudio = false;
+    steadyEnabled = false;
+    stopAllSfx();
+    stopSteadyImmediate();
+
+    state.phase = "playing";
+    state.gameOver = false;
+    state.lastSnap = null;
+    state.hoverOffRank = null;
+
+    state.animLock=false;
+    state.endzoneFlash=null;
+
+    state.nextGridbotsFgEarliestAt = 0;
+    state.gridbotsFgCooldownUntil = 0;
+
+    state.lastCardFgTeam = null;
+    state._forcedCpuOffenseCard = null;
+
+    $("team1Box").classList.remove("winFlash");
+    $("team2Box").classList.remove("winFlash");
+    $("endzoneLeft").classList.remove("flashOn");
+    $("endzoneRight").classList.remove("flashOn");
+
+    state.deck = makeDeck();
+    state.hands[1]=[];
+    state.hands[2]=[];
+
+    state.score[1]=21;
+    state.score[2]=21;
+
+    state.possessionsHad[1]=0;
+    state.possessionsHad[2]=0;
+    state.suddenDeath=false;
+
+    state.openingDriveTeam=null;
+    state.openingDriveActive=true;
+
+    $("log").innerHTML=""; // IMPORTANT: removes INSTRUCTIONS + TIP once New Game starts
+
+    replenishBothEven(5);
+    startGameAudio();
+
+    const first = (Math.random()<0.5) ? 1 : 2;
+    const spot = (first===1) ? 20 : 80;
+    logRow("warn","START", `${tn(first)} starts at <strong>${describeYard(spot)}</strong>.`);
+
+    startPossession(first, spot, { isChangeOfPossession:false });
+    render();
+  }
+
+  /********************
+   * Wire buttons
+   ********************/
+  document.getElementById("btnNew").addEventListener("click", startNewGame);
+  document.getElementById("btnPunt").addEventListener("click", userPunt);
+  document.getElementById("btnFG").addEventListener("click", userFG);
+
+  buildYardLabels();
+  renderChart();
+  resetToIdle();
+
+})();
+</script>
+</body>
+</html>
