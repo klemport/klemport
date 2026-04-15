@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bridge Crossing Puzzle</title>
+<style>
+  body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background-color: black;
+  color: red;
+}
+  .container { display: flex; justify-content: space-around; margin-top: 20px; }
+  .side {
+  width: 40%;
+  border: 2px solid red;
+  padding: 10px;
+  min-height: 150px;
+}
+  .person { display: block; margin: 5px; }
+button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: black;
+  color: red;
+  border: 1px solid red;
+}
+.log {
+  margin-top: 20px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid red;
+  padding: 10px;
+}
+</style>
+</head>
+<body>
+
+<h2>Bridge Crossing Puzzle</h2>
+<p>Select 1 or 2 people on the side with the torch, then click "Cross".</p>
+<p><strong>Total Time: <span id="time">0</span> minutes</strong></p>
+<p id="status"></p>
+
+<div class="container">
+  <div class="side" id="left">
+    <h3>Left Side (Start)</h3>
+  </div>
+  <div class="side" id="right">
+    <h3>Right Side (Goal)</h3>
+  </div>
+</div>
+
+<button onclick="cross()">Cross</button>
+<button onclick="resetGame()">Reset</button>
+
+<div class="log" id="log"></div>
+
+<script>
+const peopleData = {
+  A: 1,
+  B: 2,
+  C: 5,
+  D: 8
+};
+
+let state;
+
+function resetGame() {
+  state = {
+    left: ["A","B","C","D"],
+    right: [],
+    torch: "left",
+    time: 0
+  };
+  document.getElementById("log").innerHTML = "";
+  document.getElementById("status").innerText = "";
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById("time").innerText = state.time;
+
+  ["left","right"].forEach(side => {
+    const div = document.getElementById(side);
+    div.innerHTML = `<h3>${side === "left" ? "Left Side (Start)" : "Right Side (Goal)"}</h3>`;
+
+    state[side].forEach(person => {
+      const label = document.createElement("label");
+      label.className = "person";
+      label.innerHTML = `
+        <input type="checkbox" value="${person}" ${state.torch !== side ? "disabled" : ""}>
+        ${person} (${peopleData[person]} min)
+      `;
+      div.appendChild(label);
+    });
+
+    if (state.torch === side) {
+      const torchLabel = document.createElement("div");
+      torchLabel.innerHTML = "<strong>🔥 Torch here</strong>";
+      div.appendChild(torchLabel);
+    }
+  });
+}
+
+function cross() {
+  const side = state.torch;
+  const checkboxes = document.querySelectorAll(`#${side} input:checked`);
+  const selected = Array.from(checkboxes).map(cb => cb.value);
+
+  if (selected.length === 0 || selected.length > 2) {
+    alert("Select 1 or 2 people.");
+    return;
+  }
+
+  // Calculate time (slowest person)
+  const timeCost = Math.max(...selected.map(p => peopleData[p]));
+  state.time += timeCost;
+
+  // Move people
+  const otherSide = side === "left" ? "right" : "left";
+  selected.forEach(p => {
+    state[side] = state[side].filter(x => x !== p);
+    state[otherSide].push(p);
+  });
+
+  state.torch = otherSide;
+
+  logMove(selected, timeCost);
+  updateUI();
+  checkWin();
+}
+
+function logMove(selected, timeCost) {
+  const log = document.getElementById("log");
+  const entry = document.createElement("div");
+  entry.innerText = `${selected.join(" & ")} crossed in ${timeCost} min (Total: ${state.time})`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function checkWin() {
+  if (state.right.length === 4) {
+    const status = document.getElementById("status");
+    if (state.time <= 15) {
+      status.innerHTML = "<strong>Victory! Completed within 15 minutes.</strong>";
+    } else {
+      status.innerHTML = "<strong>All crossed, but exceeded 15 minutes.</strong>";
+    }
+  }
+}
+
+resetGame();
+</script>
+
+</body>
+</html>
