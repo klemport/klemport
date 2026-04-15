@@ -1,0 +1,1835 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Codebreaker</title>
+
+  <style>
+    :root{
+      --panel: rgba(10, 18, 34, 0.90);
+      --panel2: rgba(0,0,0,0.46);
+
+      --text:#d7e6ff; --muted:#93a6c6; --accent:#61d0ff;
+      --warn:#ffcf5a; --ok:#7dff9b;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --radius: 18px; --shadow: 0 18px 40px rgba(0,0,0,0.45);
+      --line: rgba(180,210,255,0.18);
+
+      /* Mobile shell measured heights */
+      --topbar-h: 84px;
+      --bottombar-h: 340px;
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--mono);
+      color: var(--text);
+      background: #000 url("Earth-Space.png") center center / cover no-repeat fixed;
+      overflow-x:hidden;
+    }
+
+    #particles{
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap{ min-height:100%; padding:16px 16px 34px; display:flex; justify-content:center; position:relative; z-index:1; }
+    .frame{ width:min(1100px,100%); display:flex; flex-direction:column; gap:14px; }
+
+    header{
+      display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+      padding:14px 16px; border-radius:var(--radius);
+      background:var(--panel); border:1px solid var(--line);
+      box-shadow:var(--shadow); backdrop-filter: blur(10px);
+    }
+    header h1{ margin:0; font-size:36px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); line-height:1.0; }
+    header .status{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:flex-end; align-items:center;
+      font-size:12px; color:var(--muted);
+    }
+    .pill{
+      padding:6px 10px; border-radius:999px; border:1px solid var(--line);
+      background:rgba(0,0,0,0.25);
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .pill strong{ color:var(--text); }
+    .layoutBtn{
+      font-family: var(--mono);
+      border-radius:999px;
+      border:1px solid rgba(97,208,255,0.35);
+      background:rgba(0,0,0,0.22);
+      color:var(--accent);
+      padding:6px 10px;
+      cursor:pointer;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:12px;
+      user-select:none;
+    }
+    .layoutBtn:active{ transform: translateY(1px); }
+
+    .grid{ display:grid; grid-template-columns:1.6fr 1fr; gap:14px; align-items:start; }
+    @media(max-width:900px){
+      .grid{grid-template-columns:1fr}
+      header{align-items:flex-start}
+      header .status{justify-content:flex-start}
+      header h1{ font-size:28px; }
+    }
+
+    .panel{
+      border-radius:var(--radius); background:var(--panel); border:1px solid var(--line);
+      box-shadow:var(--shadow); backdrop-filter: blur(10px); overflow:hidden;
+    }
+    .panel .head{
+      padding:12px 14px; border-bottom:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent);
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+    }
+    .panel .head .label{ color:var(--muted); font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
+    .panel .head .right{
+      display:flex; align-items:center; justify-content:flex-end;
+      gap:12px;
+    }
+    .tipsLink{
+      font-size:12px;
+      letter-spacing:.10em;
+      text-transform:uppercase;
+      color: var(--accent);
+      text-decoration: none;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(97,208,255,0.28);
+      background: rgba(0,0,0,0.22);
+      white-space:nowrap;
+    }
+
+    .stage{ padding:14px; display:flex; flex-direction:column; gap:12px; }
+    .window{
+      border-radius:16px; border:1px solid rgba(180,210,255,0.16);
+      background:
+        radial-gradient(900px 300px at 50% -40%, rgba(97,208,255,0.10), transparent 70%),
+        linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+      padding:12px; position:relative; overflow:hidden;
+    }
+    .digits{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding-top:6px; }
+    .digitCell{
+      height:48px; border-radius:12px; border:1px solid rgba(180,210,255,0.18);
+      background:rgba(0,0,0,0.35);
+      display:flex; align-items:center; justify-content:center;
+      font-size:26px; letter-spacing:.08em;
+      color:rgba(215,230,255,0.85);
+      text-shadow:0 0 18px rgba(97,208,255,0.22);
+      user-select:none;
+    }
+    .digitCell.solved{ color:var(--ok); border-color: rgba(125,255,155,0.35); background: rgba(0,0,0,0.28); }
+    .digitCell.active{ border-color: rgba(97,208,255,0.45); box-shadow: 0 0 0 2px rgba(97,208,255,0.10) inset; }
+
+    .introText{ color:var(--text); font-size:13px; line-height:1.5; }
+    .levelRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+
+    .welcomeBlock{ display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 14px; text-align:center; }
+    .welcomeTitle{ margin:0; font-size:34px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); line-height:1.1; }
+    .welcomeSub{ margin:0; font-size:18px; color:var(--text); line-height:1.35; }
+    .welcomeBtn{ margin-top:6px; width:min(360px, 100%); font-size:20px !important; padding:16px 14px !important; }
+
+    .console{ padding:14px; display:grid; gap:12px; }
+    .promptLine{
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+      padding:12px; border-radius:14px; border:1px solid var(--line); background:rgba(0,0,0,0.25);
+    }
+    .promptLine .prompt{ color:var(--muted); font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+    .entryBox{
+      width:150px; height:50px; border-radius:12px; border:1px solid rgba(180,210,255,0.22);
+      background:rgba(0,0,0,0.35);
+      display:flex; align-items:center; justify-content:center;
+      font-size:26px; letter-spacing:.22em; padding-left:.22em;
+    }
+
+    .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .btn{
+      font-family:var(--mono);
+      border-radius:14px; border:1px solid rgba(180,210,255,0.18);
+      background:rgba(0,0,0,0.35);
+      color:var(--text);
+      padding:15px 10px; font-size:20px; cursor:pointer;
+      box-shadow:0 10px 24px rgba(0,0,0,0.28);
+      transition: transform .06s ease, border-color .12s ease;
+      touch-action: manipulation;
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px) scale(0.99); }
+    .btn:hover{ border-color: rgba(97,208,255,0.42); }
+    .btn.small{ font-size:16px; padding:13px 12px; }
+    .btn.enter{
+      grid-column: span 2;
+      border-color: rgba(97,208,255,0.35);
+      background: linear-gradient(180deg, rgba(97,208,255,0.18), rgba(0,0,0,0.35));
+    }
+    .btn.back{
+      border-color: rgba(255,207,90,0.35);
+      background: linear-gradient(180deg, rgba(255,207,90,0.14), rgba(0,0,0,0.35));
+    }
+
+    .log{ padding:12px 14px 16px; overflow-y:auto; overflow-x:hidden; max-height:680px; }
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; font-size:20px; }
+    th,td{ padding:7px 8px; border-bottom:1px solid rgba(180,210,255,0.12); text-align:center; line-height:1.15; }
+    th{
+      position:sticky; top:0; z-index:1;
+      background: rgba(10,18,34,0.92);
+      color:var(--muted);
+      letter-spacing:.08em; text-transform:uppercase;
+      font-size:16px; white-space:nowrap; padding:9px 8px;
+    }
+    th.wrap2{ white-space:normal; }
+    .nowrap{ white-space:nowrap; }
+    td.hl{ color:var(--warn); font-weight:700; text-shadow:0 0 10px rgba(255,207,90,0.16); }
+
+    col.countdown{ width:20%; }
+    col.digit{ width:6.5%; }
+    col.correct{ width:18%; }
+    col.wrongpos{ width:36%; }
+
+    .msgBar{
+      padding:10px 14px; border-top:1px solid var(--line);
+      color:var(--muted); font-size:13px; min-height:42px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .msgBar .msgStrong{ color:var(--text); }
+    .msgBar .avg{ color:var(--accent); }
+
+    .modal{
+      position:fixed; inset:0; display:none;
+      align-items:center; justify-content:center; padding:18px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      z-index:50;
+    }
+    .modal.show{ display:flex; }
+    .modalCard{
+      width:min(780px,100%);
+      border-radius:20px; border:1px solid rgba(180,210,255,0.18);
+      background: rgba(10,18,34,0.92);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.55);
+      padding:18px 18px 16px;
+    }
+    .modalCard pre{
+      margin:0; white-space:pre-wrap;
+      font-family:var(--mono);
+      font-size:20px; line-height:1.35;
+      min-height:4.2em;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; justify-content:center; }
+    .row .btn{ flex:1; }
+    .btn.modalLaunch{
+      flex:0 0 100%;
+      padding:18px 14px;
+      border-radius:16px;
+      border:1px solid rgba(255,90,106,0.70);
+      background: linear-gradient(180deg, rgba(255,90,106,0.50), rgba(0,0,0,0.30));
+      text-transform:uppercase; letter-spacing:.14em;
+      font-weight:900; font-size:18px;
+    }
+
+    #videoModal .videoCard{
+      width: min(75vw, 75vh * (16/9));
+      aspect-ratio: 16 / 9;
+      border-radius: 20px;
+      border: 1px solid rgba(180,210,255,0.18);
+      background: rgba(0,0,0,0.65);
+      box-shadow: 0 22px 60px rgba(0,0,0,0.60);
+      overflow: hidden;
+      position: relative;
+    }
+    #videoModal video{
+      width:100%;
+      height:100%;
+      display:block;
+      background:#000;
+    }
+
+    /* =========================
+       MOBILE SHELL LAYER
+       ========================= */
+    body.mobileShell .panel.systemPanel{
+  position:fixed;
+  left:0; right:0; bottom:0;
+  border-radius:0;
+  z-index: 10000;
+
+  overflow: hidden;
+  max-height: none;
+
+  display:flex;
+  flex-direction:column;
+}
+
+    body.mobileShell .wrap{ padding:0; min-height:100vh; }
+    body.mobileShell .frame{ width:100%; gap:0; }
+
+    body.mobileShell header{
+  position:fixed;
+  top:0; left:0; right:0;
+  border-radius:0;
+  padding: calc(8px + var(--safe-t)) 10px 8px 10px;
+  z-index: 10000;
+}
+    body.mobileShell header h1{
+  font-size:20px;
+  letter-spacing:.14em;
+}
+    body.mobileShell header .status{ gap:8px; }
+
+    body.mobileShell .grid{ display:block; margin:0; padding:0; }
+
+
+/* Mobile: show Game Tips under title, move tips link out of SYSTEM panel */
+body.mobileShell .mobileTips{ display:inline-block; margin-top:6px; }
+body.mobileShell .systemPanel .tipsLink:not(.mobileTips){ display:none; }
+
+/* Mobile: remove SYSTEM heading and bottom status row */
+body.mobileShell .panel.systemPanel .head{ display:none; }
+body.mobileShell .panel.systemPanel .msgBar{ display:none; }
+
+/* Mobile: keep prompt + entry on one line */
+body.mobileShell .promptLine{
+      flex-wrap:nowrap;
+      padding:6px 8px;
+      gap:10px;
+    }
+body.mobileShell .promptLine .prompt{
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size:11px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.mobileShell .entryBox{
+      width:124px !important;
+      height:34px !important;
+      font-size:19px !important;
+      margin-top:2px;
+      margin-bottom:2px;
+    }
+
+
+/* Mobile: keypad grid is 3 columns so it always renders in exactly 4 rows */
+body.mobileShell .keypad.mobileKeypad{
+  grid-template-columns: repeat(3, 1fr);
+}
+/* Mobile: ENTER should not span columns; same width as others */
+body.mobileShell .btn.enter{
+  grid-column: auto !important;
+}
+
+/* Mobile: compact keypad, 4 visible rows (3x3 + 0/back/enter) with no scrolling */
+body.mobileShell .keypad{ gap:6px; }
+body.mobileShell .btn{
+      font-size:15px !important;
+      padding:12px 6px !important; /* taller buttons for better touch */
+      border-radius:12px;
+    }
+
+
+/* Mobile: keep input keypad hidden until a level is selected */
+body.mobileShell:not(.gameActive) .panel.systemPanel .console{
+  display:none;
+}
+
+/* Mobile: give level buttons and PLAY AGAIN breathing room */
+body.mobileShell .levelRow .btn.small{
+  padding-left:18px !important;
+  padding-right:18px !important;
+  min-width:124px;
+}
+body.mobileShell .levelRow{
+  justify-content:center;
+  gap:14px;
+}
+body.mobileShell #playAgainBtn{
+  padding-left:22px !important;
+  padding-right:22px !important;
+  min-width:180px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+
+    /* Bottom panel fixed, but capped so it doesn't swallow the game */
+    body.mobileShell .panel.systemPanel{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      border-radius:0;
+      z-index: 10000;
+      max-height: 46vh;         /* key fix */
+      overflow:hidden;
+    }
+    body.mobileShell .panel.systemPanel .head{
+  padding:8px 10px;
+  flex: 0 0 auto;
+}
+
+body.mobileShell .pill{
+  padding:4px 7px;
+  font-size:11px;
+}
+
+body.mobileShell .panel.systemPanel .console{
+  padding:10px calc(14px + var(--safe-r, 0px)) 10px calc(14px + var(--safe-l, 0px));
+  flex: 1 1 auto;
+  overflow: visible;
+}
+
+body.mobileShell .keypad{
+  padding-right: calc(2px + var(--safe-r, 0px));
+  padding-left:  calc(2px + var(--safe-l, 0px));
+}
+
+
+
+body.mobileShell .layoutBtn{
+  padding:4px 7px;
+  font-size:11px;
+}
+
+    body.mobileShell .panel.systemPanel .msgBar{
+  flex: 0 0 auto;
+  padding:8px 10px calc(8px + var(--safe-b));
+}
+
+    /* Slightly smaller keypad on mobile */
+    body.mobileShell .keypad{ gap:6px; }
+
+body.mobileShell .btn{
+  padding:10px 6px;
+  font-size:16px;
+  border-radius:12px;
+}
+
+body.mobileShell .promptLine{ padding:8px; }
+
+body.mobileShell .entryBox{
+  height:42px;
+  width:140px;
+  font-size:22px;
+}
+
+    body.mobileShell .btn{ padding:12px 8px; font-size:18px; border-radius:12px; }
+
+    /* Middle panel scroll area */
+    body.mobileShell .panel.launchPanel{
+      position:fixed;
+      left:0; right:0;
+      top: var(--topbar-h);
+      bottom: var(--bottombar-h);
+      border-radius:0;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      z-index: 1;
+    }
+    body.mobileShell .panel.launchPanel .log{
+      max-height:none;
+      overflow: visible;
+      padding-bottom: 18px;
+    }
+
+    @media (max-width:420px){
+      body.mobileShell table{ font-size:18px; }
+      body.mobileShell th{ font-size:14px; }
+    }
+
+/* === Mobile log table fit tweaks === */
+body.mobileShell table{ font-size:16px !important; }
+body.mobileShell th{
+  font-size:13px !important;
+  padding:7px 5px !important;
+  letter-spacing:.06em !important;
+  white-space:nowrap;
+}
+body.mobileShell td{
+  padding:7px 5px !important;
+}
+/* Tighten columns slightly on mobile */
+body.mobileShell col.countdown{ width:24% !important; }
+    body.mobileShell col.digit{ width:5.5% !important; }
+    body.mobileShell col.correct{ width:18% !important; }
+    body.mobileShell col.wrongpos{ width:36% !important; }
+/* === Mobile keypad inset + slight shrink so it doesn't touch screen edges === */
+body.mobileShell .panel.systemPanel{
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  box-sizing: border-box;
+}
+body.mobileShell .panel.systemPanel .console{
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+body.mobileShell .promptLine,
+body.mobileShell .keypad{
+  width: 100%;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+body.mobileShell .btn{
+  font-size:14px !important;
+  padding:7px 6px !important;
+}
+body.mobileShell .entryBox{
+  width:124px !important;
+  height:36px !important;
+  font-size:19px !important;
+}
+
+/* === Log table alignment tweaks (all layouts) === */
+th:nth-child(7), td:nth-child(7){
+  text-align:left;
+  padding-left:10px;
+  padding-right:6px;
+}
+/* Tighten the 5 middle columns slightly */
+th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5),th:nth-child(6),
+td:nth-child(2),td:nth-child(3),td:nth-child(4),td:nth-child(5),td:nth-child(6){
+  padding-left:6px;
+  padding-right:6px;
+}
+/* Keep COUNTDOWN readable */
+th:nth-child(1), td:nth-child(1){
+  padding-left:8px;
+  padding-right:6px;
+}
+/* Mobile: even tighter but keep words visible */
+body.mobileShell th:nth-child(7), body.mobileShell td:nth-child(7){
+  padding-left:8px;
+}
+
+/* === Header clipping fix: give CORRECT a hair more breathing room === */
+th:nth-child(6){
+  padding-right: 10px;
+  padding-left: 8px;
+}
+
+/* === Mobile touch comfort override (final) === */
+body.mobileShell .btn{
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  min-height: 52px !important;
+}
+body.mobileShell .keypad{
+  gap: 8px !important;
+}
+/* Reclaim unused vertical space around the entry row */
+body.mobileShell .promptLine{
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+body.mobileShell .entryBox{
+  height: 32px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Log separator between sets */
+tr.setSep td{
+  text-align:left;
+  letter-spacing:.18em;
+  font-size:12px;
+  padding:10px 10px;
+  background: rgba(0,0,0,0.25);
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+
+/* Slender top Game Tips link so it doesn't bully the title */
+header .tipsLink{
+  padding:4px 8px;
+  font-size:12px;
+  line-height:1;
+}
+</style>
+</head>
+
+<body>
+  <canvas id="particles" aria-hidden="true"></canvas>
+
+  <div class="wrap">
+    <div class="frame">
+
+      <header id="topHeader">
+        <div class="title"><h1>Codebreaker</h1><a class="tipsLink mobileTips" href="CB_tips.pdf" target="_blank" rel="noopener">Game Tips</a></div>
+        <div class="status">
+          <div class="pill">Level: <strong id="levelName">—</strong></div>
+          <div class="pill">Countdown: <strong id="remaining">—</strong></div>
+          <div class="pill">Set: <strong id="setIdx">—</strong>/4</div>
+
+          <!-- NEW: layout control -->
+          <button class="layoutBtn" id="layoutBtn" type="button">
+            LAYOUT: <span id="layoutModeLabel">AUTO</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="grid">
+        <!-- LEFT -->
+        <div class="panel launchPanel" id="launchPanel">
+          <div class="head">
+            <div class="label">LAUNCH CODE</div>
+            <div class="label"></div>
+          </div>
+
+          <div class="stage">
+            <div id="briefingPanel" class="panel" style="border:none;background:var(--panel2);box-shadow:none;">
+              <div style="padding:12px 14px;" id="briefingInner"></div>
+            </div>
+
+            <div id="digitsPanel" class="window" style="display:none;" aria-label="Launch code display">
+              <div class="digits" id="digitGrid" aria-live="polite"></div>
+            </div>
+          </div>
+
+          <div class="panel" style="border-left:none;border-right:none;border-bottom:none;border-top:1px solid var(--line);border-radius:0;box-shadow:none;background:transparent;">
+            <div class="head" style="border-bottom:1px solid var(--line);">
+              <div class="label">Codebreaker Log</div>
+              <div class="label">Average: <span id="avgTop">—</span></div>
+            </div>
+            <div class="log">
+              <table>
+                <colgroup>
+                  <col class="countdown">
+                  <col class="digit"><col class="digit"><col class="digit"><col class="digit">
+                  <col class="correct">
+                  <col class="wrongpos">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>COUNTDOWN</th>
+                    <th>A</th><th>B</th><th>C</th><th>D</th>
+                    <th>HITS</th>
+                    <th>ECHOES</th>
+                  </tr>
+                </thead>
+                <tbody id="logBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="panel systemPanel" id="systemPanel">
+          <div class="head">
+            <div class="label">SYSTEM</div>
+</div>
+
+          <div class="console">
+            <div class="promptLine">
+              <div class="prompt">SELECT FOUR NUMBERS AND HIT ENTER</div>
+              <div class="entry"><div class="entryBox" id="entryBox">____</div></div>
+            </div>
+
+            <div class="keypad" id="keypad" aria-label="Number keypad"></div>
+          </div>
+
+          <div class="msgBar">
+            <div id="msgLine"><span class="msgStrong">SYSTEM:</span> Awaiting clearance…</div>
+            <div class="avg">Average: <span id="avgInline">—</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="System message">
+    <div class="modalCard">
+      <pre id="modalText"></pre>
+      <div class="row">
+        <button class="btn enter" id="modalOk">CONTINUE</button>
+        <button class="btn modalLaunch" id="modalLaunch" style="display:none;">LAUNCH MISSILE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="videoModal" role="dialog" aria-modal="true" aria-label="Launch video">
+    <div class="videoCard">
+      <video id="launchVideo" preload="auto" playsinline></video>
+    </div>
+  </div>
+
+<script>
+/* ===== Layout mode control (AUTO/DESKTOP/MOBILE) ===== */
+(function(){
+  const KEY = "codebreaker_layout_mode_v7"; // 'auto' | 'desktop' | 'mobile'
+  const btn = document.getElementById("layoutBtn");
+  const label = document.getElementById("layoutModeLabel");
+  const header = document.getElementById("topHeader");
+  const system = document.getElementById("systemPanel");
+
+  let mode = (localStorage.getItem(KEY) || "auto");
+
+  function isAutoMobile(){
+    return window.innerWidth <= 820; // IMPORTANT: width-only, no pointer detection
+  }
+
+  function apply(){
+    const wantMobileShell =
+      (mode === "mobile") ? true :
+      (mode === "desktop") ? false :
+      isAutoMobile();
+
+    document.body.classList.toggle("mobileShell", wantMobileShell);
+    label.textContent = mode.toUpperCase();
+
+    if (!wantMobileShell) {
+      // Clear mobile-only inline clamps so desktop can't be clipped after toggling layouts
+      system.style.maxHeight = "";
+      document.documentElement.style.setProperty("--topbar-h", "0px");
+      document.documentElement.style.setProperty("--bottombar-h", "0px");
+    }
+
+    if (wantMobileShell) requestAnimationFrame(measure);
+  }
+
+  function measure(){
+  if (!document.body.classList.contains("mobileShell")) return;
+
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+  const maxBottom = Math.floor(vh * 0.48);   // clamp bottom input area for mobile
+  system.style.maxHeight = maxBottom + "px";
+
+  const topH = Math.ceil(header.getBoundingClientRect().height);
+  const bottomH = Math.ceil(system.getBoundingClientRect().height);
+
+  document.documentElement.style.setProperty("--topbar-h", topH + "px");
+  document.documentElement.style.setProperty("--bottombar-h", bottomH + "px");
+}
+
+  btn.addEventListener("click", () => {
+    // AUTO -> DESKTOP -> MOBILE -> AUTO
+    mode = (mode === "auto") ? "desktop" : (mode === "desktop") ? "mobile" : "auto";
+    localStorage.setItem(KEY, mode);
+    apply();
+  });
+
+  const ro = new ResizeObserver(() => {
+
+    if (document.body.classList.contains("mobileShell")) measure();
+  });
+  ro.observe(header);
+  ro.observe(system);
+
+  window.addEventListener("resize", () => { apply(); });
+  window.addEventListener("orientationchange", () => setTimeout(apply, 120));
+
+  apply();
+})();
+</script>
+
+<!-- ===== Your original game JS (unchanged) starts here ===== -->
+<script>
+(() => {
+
+// Mobile: keep middle panel pinned to bottom unless user scrolls up.
+let followMiddleBottom = true;
+function isNearBottom(el, px=24){
+  return (el.scrollHeight - el.scrollTop - el.clientHeight) <= px;
+}
+function scrollMiddleToBottom(force=false){
+  const mid = document.getElementById("launchPanel");
+  if (!mid) return;
+  if (force) followMiddleBottom = true;
+  if (!followMiddleBottom && !force) return;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ mid.scrollTop = mid.scrollHeight; }));
+}
+
+
+  // (Everything below is the same as your computer version JS.
+  //  I did not change your game logic—only the layout controller above.)
+  // ---------------- Audio ----------------
+  const audioCache = new Map();
+  function getAudio(file){
+    if (!file) return null;
+    if (!audioCache.has(file)) audioCache.set(file, new Audio(file));
+    return audioCache.get(file);
+  }
+  function setLoop(a, loop){ if(a) try{ a.loop=!!loop; }catch(_){} }
+  function stopSafe(a){ if(a) try{ a.pause(); a.currentTime=0; a.volume=1; }catch(_){} }
+  function stopAllAudio(){
+    for (const a of audioCache.values()){
+      try{ a.pause(); a.currentTime=0; a.loop=false; a.volume=1; }catch(_){}
+    }
+  }
+  function playSafe(a){
+    if (!a) return Promise.resolve(false);
+    try{
+      a.currentTime = 0;
+      a.volume = 1;
+      const p = a.play();
+      if (p && typeof p.then === "function") return p.then(()=>true).catch(()=>false);
+      return Promise.resolve(true);
+    }catch(_){ return Promise.resolve(false); }
+  }
+  function fadeOutAudio(a, ms, curve="linear"){
+    if (!a) return;
+    try{
+      if (a.paused) { stopSafe(a); return; }
+      const stepMs = 33;
+      const steps = Math.max(10, Math.floor(ms / stepMs));
+      const startVol = (typeof a.volume === "number") ? a.volume : 1;
+      let i = 0;
+      const iv = setInterval(()=>{
+        i++;
+        const t = Math.min(1, i / steps);
+        const factor = (curve === "easeOut") ? Math.pow(1 - t, 2) : (1 - t);
+        const v = Math.max(0, startVol * factor);
+        try{ a.volume = v; }catch(_){}
+        if (t >= 1){
+          clearInterval(iv);
+          try{ a.pause(); a.currentTime=0; a.volume=1; }catch(_){}
+        }
+      }, stepMs);
+    }catch(_){}
+  }
+  function stopAmbientWithFade(a){ fadeOutAudio(a, 1000, "linear"); }
+
+  const SFX = {
+    beep:  getAudio("Beep.mp3"),
+    buzz:  getAudio("buzzlo.mp3"),
+    got4:  getAudio("got4.mp3"),
+    got16: getAudio("got16.mp3"),
+  };
+  const AMB = {
+    cbIntro: getAudio("CB-INTRO.mp3"),
+    softHum: getAudio("SoftHum.mp3"),
+    hum:     getAudio("Hum.mp3"),
+    coolHum: getAudio("CoolHum.mp3"),
+  };
+  const MUSIC = { code: getAudio("Codebreaker_end.mp3") };
+  const END = { gameEnd: getAudio("GameEnd.mp3") };
+
+  function startIntroFromGesture(){ setLoop(AMB.cbIntro, false); setTimeout(()=>{ playSafe(AMB.cbIntro); }, 120); }
+  function startGameAmbience(){ setLoop(AMB.softHum, true); playSafe(AMB.softHum); }
+  function switchToSet4Hum(){ stopAmbientWithFade(AMB.softHum); setLoop(AMB.hum, true); playSafe(AMB.hum); }
+  function startCoolHumLoop(){ setLoop(AMB.coolHum, true); playSafe(AMB.coolHum); }
+  function stopCoolHum(){ stopAmbientWithFade(AMB.coolHum); }
+  function playGameEndOnce(){
+    const a = END.gameEnd;
+    if (!a) return;
+    setLoop(a,false);
+    playSafe(a);
+  }
+
+  // ---------------- Comments pools ----------------
+
+// ---------------- Comments: weighted + non-repeating until pool exhausted ----------------
+  const COMMENT_POOLS = {
+    "All 4 on first guess": [
+      { text:"GETTING FOUR DIGITS IN ONE GUESS SEEMS AMAZINGLY SUSPICIOUS. SCANNING FOR MATRIX ANOMALIES.", file:"V-Scanning.mp3", seconds:6, weight:1 },
+    ],
+    "All 4 on second guess": [
+      { text:"THE FORCE IS STRONG WITH THIS ONE!", file:"V-ForceStrong.mp3", seconds:2, weight:1 },
+    ],
+    "All 4 on third guess": [
+      { text:"WELL DONE! THIS IS THE WAY.", file:"V-TheWay.mp3", seconds:2, weight:1 },
+    ],
+
+    "Ave <6.5": [
+      { text:"YOUR AVERAGE IS QUITE LOW. FASCINATING.", file:"V-Fascinating.mp3", seconds:3, weight:2 },
+      { text:"EXCELLENT! I WILL PROCEED BY YOUR COMMAND.", file:"V-ByYourCommand.mp3", seconds:3, weight:4 },
+      { text:"TAKE THAT, KOBAYASHI MARU.", file:"V-Kobayashi.mp3", seconds:2, weight:4 },
+      { text:"MAY THE FORCE BE WITH YOU.", file:"V-MaytheForce.mp3", seconds:1, weight:2 },
+      { text:"KEEP GOING! THE NEEDS OF THE MANY OUTWEIGH THE NEEDS OF THE FEW.", file:"V-NeedsoftheMany.mp3", seconds:4, weight:4 },
+      { text:"IMPRESSIVE. MOST IMPRESSIVE.", file:"V-Impressive.mp3", seconds:2, weight:4 },
+      { text:"ALRIGHT, THIS CHICK IS TOAST!", file:"V-Toast.mp3", seconds:2, weight:2 },
+      { text:"YOU MUST BE THE MASTER CODE BREAKER FROM CANTO BIGHT.", file:"V-CantoBight.mp3", seconds:3, weight:4 },
+    ],
+
+    "Ave >=6.5 and <7.5": [
+      { text:"DON'T LOSE HOPE. ONLY AT THE PRECIPICE DO WE EVOLVE.", file:"V-Precipice.mp3", seconds:4, weight:4 },
+      { text:"YOU CAN DO THIS! BY GRABTHARS HAMMER!", file:"V-Grabthar.mp3", seconds:3, weight:4 },
+      { text:"DO OR DO NOT. THERE IS NO TRY.", file:"V-DoOrDoNot.mp3", seconds:3, weight:2 },
+      { text:"IF YOU ARE WONDERING IF WE WILL BE THE VICTIMS OF ACCELERATED ENTROPY, THERE IS AS YET, INSUFFICIENT DATA FOR A MEANINGFUL ANSWER.", file:"V-Entropy.mp3", seconds:7, weight:4 },
+      { text:"WE WILL NOT GO QUIETLY INTO THE NIGHT!", file:"V-WeWillNotGo.mp3", seconds:3, weight:4 },
+      { text:"WE ARE FUNCTIONING WITHIN ESTABLISHED PARAMETERS.", file:"V-Established.mp3", seconds:2, weight:4 },
+    ],
+
+    "Ave >=7.5 and <8": [
+      { text:"ONCE MORE UNTO THE BREACH, DEAR FRIENDS.", file:"V-Breach.mp3", seconds:2, weight:2 },
+      { text:"CRY ‘HAVOC!’, AND LET SLIP THE DOGS OF WAR!", file:"V-CryHavoc.mp3", seconds:3, weight:2 },
+      { text:"IT IS QUITE POSSIBLE THIS ASTEROID IS NOT ENTIRELY STABLE.", file:"V-Stable.mp3", seconds:4, weight:4 },
+      { text:"WOULDN’T YOU PREFER A NICE GAME OF CHESS?", file:"V-Chess.mp3", seconds:3, weight:4 },
+      { text:"YOU'RE WONDERING WHO I AM, MACHINE OR MANNEQUIN.", file:"V-YouAreWondering.mp3", seconds:3, weight:1 },
+      { text:"THERE WILL BE A PROBLEM ON THE HORIZON IF THERE'S NO HORIZON.", file:"V-Horizon.mp3", seconds:4, weight:4 },
+    ],
+
+    "Average >= 8": [
+      { text:"THIS IS NOT GOING WELL, BUT WHAT DO I KNOW? MY SPECIALTY IS JUST STRATEGIC ANALYSIS.", file:"V-Stategic.mp3", seconds:6, weight:4 },
+      { text:"YOU ARE GOING TO HAVE TO SCIENCE THE SHIT OUT OF THIS.", file:"V-Science.mp3", seconds:4, weight:4 },
+      { text:"NEVER GIVE UP! NEVER SURRENDER!", file:"V-NeverGiveUp.mp3", seconds:2, weight:4 },
+      { text:"HOUSTON, WE HAVE A PROBLEM.", file:"V-Houston.mp3", seconds:2, weight:4 },
+      { text:"WOULD YOU LIKE TO SEE SOME PROJECTED KILL RATIOS?", file:"V-KillRatios.mp3", seconds:3, weight:2 },
+      { text:"IT IS AGAINST MY PROGRAMMING TO IMPERSONATE A DEITY.", file:"V-Deity.mp3", seconds:3, weight:2 },
+      { text:"WOULD YOU LIKE TO KNOW THE PROBABILITY OF LOSING? IT'S HIGH. IT'S VERY HIGH.", file:"V-VeryHigh.mp3", seconds:5, weight:4 },
+      { text:"I HAVE A BAD FEELING ABOUT THIS.", file:"V-BadFeeling.mp3", seconds:2, weight:4 },
+      { text:"THE POSSIBILITY OF SUCCESSFULLY BLASTING AN ASTEROID IS APPROXIMATELY THREE-THOUSAND SEVEN-HUNDRED AND TWENTY TO ONE!", file:"V-Possibility.mp3", seconds:7, weight:4 },
+      { text:"RESISTANCE IS FUTILE.", file:"V-Resistance.mp3", seconds:1, weight:4 },
+    ],
+
+    "Win": [
+      { text:"YOU HAVE DECIPHERED THE CODE! YOU CAN LAUNCH THE MISSILE AND SAVE LIFE ON EARTH!", file:"V-Deciphered.mp3", seconds:5, weight:1 },
+      { text:"NOW LET’S BLOW THIS THING AND GO HOME!", file:"V-BlowThisThing.mp3", seconds:3, weight:2 },
+    ],
+
+    "After Launch": [
+      { text:"THE ASTEROID HAS BEEN VAPORIZED! YOUR HEROIC EFFORTS HAVE SAVED LIFE ON EARTH! THANK THE MAKER!", file:"V-SavedLife.mp3", seconds:6, weight:3 },
+      { text:"THAT’S ONE SMALL STEP FOR MAN, ONE GIANT EXPLOSION FOR MANKIND. LIVE LONG AND PROSPER.", file:"V-OneSmallStep.mp3", seconds:7, weight:4 },
+      { text:"SWEET MOTHER OF TREEBEARD! YOU HAVE SHOWN YOUR QUALITY, THE VERY HIGHEST.", file:"V-TreeBeard.mp3", seconds:5, weight:2 },
+    ],
+
+    "Lose": [
+      { text:"GOOD THING THIS WAS A SIMULATION. BETTER LUCK NEXT TIME.", file:"V-Simulation.mp3", seconds:4, weight:1 },
+      { text:"THIS WAS A TEST OF THE EMERGENCY BROADCAST SYSTEM. THIS WAS ONLY A TEST. IF THIS HAD BEEN AN ACTUAL EMERGENCY, THE SIGNAL YOU JUST HEARD WOULD HAVE BEEN FOLLOWED BY MASSIVE EXPLOSIONS, SCREAMING, AND DEATH. THIS CONCLUDES THIS TEST OF THE EMERGENCY BROADCAST SYSTEM.", file:"V-Emergency.mp3", seconds:19, weight:1 },
+    ],
+  };
+
+  const poolState = {};
+  function cloneItems(items){ return items.map(x => ({...x})); }
+  function resetPool(key){
+    poolState[key] = poolState[key] || { all: cloneItems(COMMENT_POOLS[key] || []), remaining: [] };
+    poolState[key].remaining = cloneItems(poolState[key].all);
+  }
+  function initAllPools(){
+    for (const key of Object.keys(COMMENT_POOLS)){
+      poolState[key] = { all: cloneItems(COMMENT_POOLS[key]), remaining: [] };
+      resetPool(key);
+    }
+  }
+  function weightedPickIndex(items){
+    let total = 0;
+    for (const it of items) total += Math.max(1, Number(it.weight || 1));
+    let r = Math.random() * total;
+    for (let i=0;i<items.length;i++){
+      r -= Math.max(1, Number(items[i].weight || 1));
+      if (r <= 0) return i;
+    }
+    return items.length - 1;
+  }
+  function pickFromPool(key){
+    const st = poolState[key];
+    if (!st || !st.all.length) return null;
+    if (!st.remaining.length) resetPool(key);
+    const idx = weightedPickIndex(st.remaining);
+    const chosen = st.remaining.splice(idx, 1)[0];
+    return chosen ? { text: chosen.text, file: chosen.file, seconds: chosen.seconds } : null;
+  }
+
+  // Difficulty scaling for average-based comments:
+  // Hard = 1.00, Medium = 1.25, Easy = 1.50
+  function levelAvgFactor(levelKey){
+    if (levelKey === "easy") return 1.50;
+    if (levelKey === "medium") return 1.25;
+    return 1.00;
+  }
+
+  function avgBucket(avg){
+    if (avg < 6.5) return "Ave <6.5";
+    if (avg >= 6.5 && avg < 7.5) return "Ave >=6.5 and <7.5";
+    if (avg >= 7.5 && avg < 8) return "Ave >=7.5 and <8";
+    return "Average >= 8";
+  }
+  function pickAvgMessage(realAvg, levelKey){
+    const factor = levelAvgFactor(levelKey);
+    const effectiveAvg = realAvg / factor;
+    return pickFromPool(avgBucket(effectiveAvg));
+  }
+
+  // ---------------- DOM ----------------
+  const digitGrid=document.getElementById("digitGrid");
+  const levelName=document.getElementById("levelName");
+  const remainingEl=document.getElementById("remaining");
+  const setIdxEl=document.getElementById("setIdx");
+  const avgInline=document.getElementById("avgInline");
+  const logBody=document.getElementById("logBody");
+  const entryBox=document.getElementById("entryBox");
+  const msgLine=document.getElementById("msgLine");
+  const keypadEl=document.getElementById("keypad");
+  const briefingPanel=document.getElementById("briefingPanel");
+  const briefingInner=document.getElementById("briefingInner");
+  const digitsPanel=document.getElementById("digitsPanel");
+
+  const modal = document.getElementById("modal");
+  const modalText = document.getElementById("modalText");
+  const modalOk = document.getElementById("modalOk");
+  const modalLaunch = document.getElementById("modalLaunch");
+
+  const videoModal = document.getElementById("videoModal");
+  const launchVideo = document.getElementById("launchVideo");
+  launchVideo.src = "AsteroidExplosion.mp4";
+
+  function msg(text){ msgLine.innerHTML = text; }
+
+  // ---------------- Typed modal ----------------
+  const typer = { running:false, segments:[], segIndex:0, charIndex:0, timers:[], onClose:null, onLaunch:null, keepCoolHum:false, loseFadeCoolHum:false };
+
+  function clearTyper(){
+    typer.running=false; typer.segments=[]; typer.segIndex=0; typer.charIndex=0;
+    for (const t of typer.timers){ clearTimeout(t); clearInterval(t); }
+    typer.timers=[];
+    typer.onClose=null; typer.onLaunch=null; typer.keepCoolHum=false; typer.loseFadeCoolHum=false;
+  }
+  function renderAllSegmentsInstant(){
+    let all="";
+    for (let i=0;i<typer.segments.length;i++){
+      if (i>0) all += "\n\n";
+      all += (typer.segments[i].text||"").trim();
+    }
+    modalText.textContent = all;
+    typer.running=false;
+  }
+  function startSegmentTyping(seg){
+    const text=(seg.text||"").trim();
+    const file=seg.file||null;
+    const seconds=Number(seg.seconds||0);
+
+    if (file){
+      const a=getAudio(file);
+      setLoop(a,false);
+      const audioDelay=setTimeout(()=>playSafe(a), 500);
+      typer.timers.push(audioDelay);
+    }
+
+    const totalMs=Math.max(250,(seconds+0.5)*1000);
+    const stepMs=Math.max(12, Math.floor(totalMs / Math.max(text.length,1)));
+
+    typer.charIndex=0;
+
+    const interval=setInterval(()=>{
+      if (!typer.running) return;
+      typer.charIndex++;
+      const slice=text.slice(0,typer.charIndex);
+
+      let out="";
+      for (let i=0;i<typer.segIndex;i++){
+        if (i>0) out += "\n\n";
+        out += (typer.segments[i].text||"").trim();
+      }
+      if (typer.segIndex>0) out += "\n\n";
+      out += slice;
+      modalText.textContent = out;
+
+      if (typer.charIndex >= text.length){
+        clearInterval(interval);
+        typer.segIndex++;
+        if (typer.segIndex < typer.segments.length){
+          const nxt=setTimeout(()=>startSegmentTyping(typer.segments[typer.segIndex]), 0);
+          typer.timers.push(nxt);
+        } else {
+          typer.running=false;
+        }
+      }
+    }, stepMs);
+
+    typer.timers.push(interval);
+  }
+
+  function showModalTypedSequence(segments, {showContinue=true, showLaunch=false, onClose=null, onLaunch=null, keepCoolHum=false, loseFadeCoolHum=false} = {}){
+    clearTyper();
+    modal.classList.add("show");
+    modalText.textContent="";
+
+    typer.segments = segments.filter(s => s && (s.text||"").trim().length);
+    typer.segIndex = 0;
+    typer.running = true;
+    typer.onClose = onClose || null;
+    typer.onLaunch = onLaunch || null;
+    typer.keepCoolHum = keepCoolHum;
+    typer.loseFadeCoolHum = loseFadeCoolHum;
+
+    modalOk.style.display = showContinue ? "" : "none";
+    modalLaunch.style.display = showLaunch ? "" : "none";
+    modalOk.textContent = "CONTINUE";
+    modalLaunch.textContent = "LAUNCH MISSILE";
+
+    modalOk.onclick = () => {
+      if (typer.running){ renderAllSegmentsInstant(); return; }
+      modal.classList.remove("show");
+      const cb = typer.onClose;
+      const loseFade = typer.loseFadeCoolHum;
+      clearTyper();
+
+      if (loseFade){
+        fadeOutAudio(AMB.coolHum, 5000, "easeOut");
+      }
+      if (typeof cb === "function") cb();
+    };
+
+    modalLaunch.onclick = () => {
+      if (typer.running) renderAllSegmentsInstant();
+      modal.classList.remove("show");
+      const cb = typer.onLaunch;
+      const keep = typer.keepCoolHum;
+      clearTyper();
+      if (!keep) stopCoolHum();
+      if (typeof cb === "function") cb();
+    };
+
+    if (typer.segments.length) startSegmentTyping(typer.segments[0]);
+    else typer.running=false;
+
+    setTimeout(()=>{
+      if (showLaunch) modalLaunch.focus();
+      else if (showContinue) modalOk.focus();
+    },0);
+  }
+
+  // ---------------- Game rules ----------------
+  const INTRO_TEXT = `An asteroid is hurling toward earth and time is running out! The scientist who devised a special defense missile is missing! He is the only one that knows the 16-digit launch code! The security system will only allow a certain number of guesses. You must decipher the code 4 numbers at a time. If you enter less than 4 digits, zeros will be added to the front. A, B, C, & D represent the 4 numbers. After each guess the system will tell you how many you got completely right (HITS), and how many you got right but in the wrong A-B-C-D position (ECHOES). You'll get closer and closer to the answer each turn, if you use your information wisely. Life on earth is depending on you! Good luck!`;
+
+  const LEVELS={ easy:{name:"Easy",guesses:43}, medium:{name:"Medium",guesses:35}, hard:{name:"Hard",guesses:27} };
+  const ODDS={ pi:0.02, phi:0.02, fib:0.10 };
+  const PI_CODE="3141592653589793".split("");
+  const PHI_CODE="1618033988749894".split("");
+  const FIB_DIGITS = ["0","1","2","3","5","8"];
+
+  let game=null;
+  let rollTimer=null;
+  let entry="";
+  let winAwaitingLaunch=false;
+  let welcomeAccepted=false;
+
+  function renderEntry(){ entryBox.textContent=entry.padEnd(4,"_"); }
+
+  function pickOccurrence(forcedMode){
+    if (forcedMode==="fib") return "fib";
+    const r=Math.random();
+    if (r < ODDS.pi) return "pi";
+    if (r < ODDS.pi+ODDS.phi) return "phi";
+    if (r < ODDS.pi+ODDS.phi+ODDS.fib) return "fib";
+    return "std";
+  }
+  function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function generateCode16(forcedMode=null){
+    const mode=pickOccurrence(forcedMode);
+    if (mode==="pi") return PI_CODE.slice();
+    if (mode==="phi") return PHI_CODE.slice();
+
+    const digits=[];
+    for (let s=0;s<4;s++){
+      let seq = "";
+      if (mode==="fib"){
+        seq += randChoice(FIB_DIGITS);
+        seq += randChoice(FIB_DIGITS);
+        seq += randChoice(FIB_DIGITS);
+        seq += randChoice(FIB_DIGITS);
+      } else {
+        seq += String(Math.floor(Math.random()*10));
+        seq += String(Math.floor(Math.random()*10));
+        seq += String(Math.floor(Math.random()*10));
+        seq += String(Math.floor(Math.random()*10));
+      }
+      digits.push(...seq.split(""));
+    }
+    return digits;
+  }
+
+  function scoreGuess(secret4, guess4){
+    let correct=0;
+    const sRemain=[], gRemain=[];
+    for (let i=0;i<4;i++){
+      if (guess4[i]===secret4[i]) correct++;
+      else { sRemain.push(secret4[i]); gRemain.push(guess4[i]); }
+    }
+    const freq=new Map();
+    for (const d of sRemain) freq.set(d,(freq.get(d)||0)+1);
+    let wrongPos=0;
+    for (const d of gRemain){
+      const n=freq.get(d)||0;
+      if (n>0){ wrongPos++; freq.set(d,n-1); }
+    }
+    return {correct,wrongPos};
+  }
+
+  function buildDigitGrid(blank=false){
+    digitGrid.innerHTML="";
+    for (let i=0;i<16;i++){
+      const cell=document.createElement("div");
+      cell.className="digitCell";
+      cell.textContent=blank?"—":String(Math.floor(Math.random()*10));
+      digitGrid.appendChild(cell);
+    }
+    markActiveSet(); revealSolvedSets();
+  }
+  function markActiveSet(){
+    if (!digitGrid.children.length) return;
+    for (let i=0;i<16;i++){
+      const cell=digitGrid.children[i];
+      cell.classList.remove("active");
+      if (!game) continue;
+      const set=Math.floor(i/4);
+      if (set===game.solvedSets && game.solvedSets<4) cell.classList.add("active");
+    }
+  }
+  function revealSolvedSets(){
+    if (!game) return;
+    for (let s=0;s<game.solvedSets;s++){
+      for (let j=0;j<4;j++){
+        const idx=s*4+j;
+        const cell=digitGrid.children[idx];
+        cell.textContent=game.code[idx];
+        cell.classList.add("solved");
+      }
+    }
+  }
+  function startRolling(){
+    stopRolling();
+    rollTimer=setInterval(()=>{
+      if (!game || game.done) return;
+      for (let i=0;i<16;i++){
+        const cell=digitGrid.children[i];
+        if (!cell) continue;
+        if (!cell.classList.contains("solved")) cell.textContent=String(Math.floor(Math.random()*10));
+      }
+    },50);
+  }
+  function stopRolling(){ if(rollTimer){ clearInterval(rollTimer); rollTimer=null; } }
+
+  // --------- Average display rules ----------
+  function lossAvgString(levelKey){
+    if (levelKey === "easy") return "10.75+";
+    if (levelKey === "medium") return "8.75+";
+    return "6.75+";
+  }
+  function getDisplayedAverage(){
+    if (!game) return "—";
+    if (game.avgOverride) return game.avgOverride;
+    if (game.solvedSets <= 0) return "—";
+
+    if (game.done && game.solvedSets >= 4){
+      return (game.totalTurns / 4).toFixed(2);
+    }
+
+    const turns = game.turnsAtLastCompletion ?? 0;
+    return (turns / game.solvedSets).toFixed(2);
+  }
+  function updateAveragesUI(){
+    const v = getDisplayedAverage();
+    if (typeof avgInline !== 'undefined' && avgInline) avgInline.textContent = v;
+    const avgTop = document.getElementById('avgTop');
+    if (avgTop) avgTop.textContent = v;
+  }
+  function updateHeaderUI(){
+    if (!game) return;
+    remainingEl.textContent=String(game.remaining);
+    setIdxEl.textContent=String(Math.min(game.solvedSets+1,4));
+    markActiveSet();
+    updateAveragesUI();
+  }
+
+  function addLogRow(displayCountdown, guess4, correct, wrongPos){
+    // Store for end-of-game full log view
+    try{
+      if (game && game.setLogs){
+        const idx = Math.max(0, Math.min(3, game.solvedSets|0));
+        game.setLogs[idx].push({ displayCountdown, guess4:[...guess4], correct, wrongPos });
+      }
+    }catch(_){ }
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td class="hl">${displayCountdown}</td>
+      <td>${guess4[0]}</td><td>${guess4[1]}</td><td>${guess4[2]}</td><td>${guess4[3]}</td>
+      <td class="hl">${correct}</td>
+      <td class="hl">${wrongPos}</td>
+    `;
+    logBody.appendChild(tr);
+    const logDiv=logBody.closest(".log");
+    if (logDiv) logDiv.scrollTop=logDiv.scrollHeight;
+    if (document.body.classList.contains("mobileShell")) scrollMiddleToBottom();
+  }
+  
+function rebuildFullLog(){
+  if (!game || !game.setLogs) return;
+  logBody.innerHTML = "";
+  // Render Set 1..4 with separators
+  for (let si=0; si<4; si++){
+    const rows = game.setLogs[si] || [];
+    if (!rows.length) continue;
+    const sep=document.createElement("tr");
+    sep.className="setSep";
+    sep.innerHTML = `<td class="hl" colspan="7">SET ${si+1}</td>`;
+    logBody.appendChild(sep);
+
+    for (const r of rows){
+      const tr=document.createElement("tr");
+      tr.innerHTML=`
+        <td class="hl">${r.displayCountdown}</td>
+        <td>${r.guess4[0]}</td><td>${r.guess4[1]}</td><td>${r.guess4[2]}</td><td>${r.guess4[3]}</td>
+        <td class="hl">${r.correct}</td>
+        <td class="hl">${r.wrongPos}</td>
+      `;
+      logBody.appendChild(tr);
+    }
+  }
+  const logDiv=logBody.closest(".log");
+  if (logDiv) logDiv.scrollTop=logDiv.scrollHeight;
+  if (document.body.classList.contains("mobileShell")) scrollMiddleToBottom(true);
+}
+
+function clearLogForNextSet(){
+    logBody.innerHTML="";
+    const logDiv=logBody.closest(".log");
+    if (logDiv) logDiv.scrollTop=0;
+  }
+
+  function renderKeypad(mode){
+    if (mode==="playAgain"){
+      keypadEl.innerHTML = `<button class="btn enter" id="playAgainBtn">PLAY AGAIN</button>`;
+      document.getElementById("playAgainBtn").addEventListener("click", () => resetToMenu(true));
+      return;
+    }
+    keypadEl.innerHTML = `
+      <button class="btn" data-key="1">1</button><button class="btn" data-key="2">2</button><button class="btn" data-key="3">3</button>
+      <button class="btn" data-key="4">4</button><button class="btn" data-key="5">5</button><button class="btn" data-key="6">6</button>
+      <button class="btn" data-key="7">7</button><button class="btn" data-key="8">8</button><button class="btn" data-key="9">9</button>
+      <button class="btn back" data-key="back">⌫</button><button class="btn" data-key="0">0</button><button class="btn enter" data-key="enter">ENTER</button>
+    `;
+  }
+
+  function showWelcomeInBriefingArea(){
+    briefingInner.innerHTML = `
+      <div class="welcomeBlock">
+        <h2 class="welcomeTitle">Welcome to Codebreaker</h2>
+        <p class="welcomeSub">You have been granted control room security clearance.</p>
+        <button class="btn enter welcomeBtn" id="welcomeEnterBtn">ENTER</button>
+      </div>
+    `;
+    document.getElementById("welcomeEnterBtn").addEventListener("click", acceptWelcomeGate);
+    msg(`<span class="msgStrong">SYSTEM:</span> Awaiting clearance…`);
+  }
+
+  function showIntroAndLevels(){
+    briefingInner.innerHTML = `
+      <pre class="introText" style="margin:0;white-space:pre-wrap;font-family:var(--mono);">${INTRO_TEXT}</pre>
+      <div class="levelRow" id="levelRow">
+        <button class="btn small" data-level="easy">Easy</button>
+        <button class="btn small" data-level="medium">Medium</button>
+        <button class="btn small" data-level="hard">Hard</button>
+      </div>
+    `;
+    document.getElementById("levelRow").addEventListener("click",(e)=>{
+      const b=e.target.closest("button[data-level]");
+      if (!b || !welcomeAccepted) return;
+      const level=b.dataset.level;
+      const forceFib=(level==="hard" && e.shiftKey===true);
+      newGame(level, forceFib ? "fib" : null);
+    });
+    msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
+  }
+
+  function acceptWelcomeGate(){
+    if (welcomeAccepted) return;
+    welcomeAccepted = true;
+    startIntroFromGesture();
+    showIntroAndLevels();
+  }
+
+  function endScreen(won){
+    renderKeypad("playAgain");
+    msg(won ? `<span class="msgStrong">SYSTEM:</span> Mission complete.` : `<span class="msgStrong">SYSTEM:</span> Simulation ended.`);
+  }
+
+  function resetToMenu(fromPlayAgain){
+    document.body.classList.remove("gameActive");
+    followMiddleBottom = true;
+    stopRolling();
+    clearTyper();
+    modal.classList.remove("show");
+    videoModal.classList.remove("show");
+    try{ launchVideo.pause(); launchVideo.currentTime = 0; }catch(_){}
+    launchInProgress = false;
+
+    if (fromPlayAgain) stopAllAudio();
+
+    game=null; winAwaitingLaunch=false;
+
+    levelName.textContent="—"; remainingEl.textContent="—"; setIdxEl.textContent="—";
+    avgInline.textContent="—";
+    logBody.innerHTML="";
+    entry=""; renderEntry();
+
+    briefingPanel.style.display="block";
+    digitsPanel.style.display="none";
+    buildDigitGrid(true);
+    renderKeypad("game");
+
+    if (!fromPlayAgain){
+      stopAmbientWithFade(AMB.softHum);
+      stopAmbientWithFade(AMB.hum);
+      stopAmbientWithFade(AMB.coolHum);
+      fadeOutAudio(AMB.cbIntro, 600, "linear");
+    }
+
+    welcomeAccepted=false;
+    showWelcomeInBriefingArea();
+  }
+
+  function newGame(levelKey, forcedMode=null){
+    if (!welcomeAccepted) return;
+
+    document.body.classList.add("gameActive");
+    followMiddleBottom = true;
+    scrollMiddleToBottom(true);
+    followMiddleBottom = true;
+    scrollMiddleToBottom(true);
+
+    initAllPools();
+    renderKeypad("game");
+
+    fadeOutAudio(AMB.cbIntro, 5000, "easeOut");
+    startGameAmbience();
+
+    const lvl=LEVELS[levelKey];
+    const code=generateCode16(forcedMode);
+
+    game={
+      levelKey, levelName:lvl.name,
+      remaining:lvl.guesses,
+      code, solvedSets:0, totalTurns:0, turnsPerSet:[0,0,0,0],
+      turnsAtLastCompletion: 0,
+      avgOverride: "",
+      setLogs:[[],[],[],[]],
+      done:false, launched:false,
+    };
+    winAwaitingLaunch=false;
+
+    levelName.textContent=game.levelName;
+    remainingEl.textContent=game.remaining;
+    setIdxEl.textContent="1";
+    msg(`SYSTEM: Level engaged. Decipher Set 1.`);
+
+    logBody.innerHTML="";
+    entry=""; renderEntry();
+
+    briefingPanel.style.display="none";
+    digitsPanel.style.display="block";
+
+    buildDigitGrid();
+    startRolling();
+
+    updateAveragesUI();
+  }
+
+  function failGame(){
+    if (!game || game.done) return;
+    game.done=true;
+
+    game.avgOverride = lossAvgString(game.levelKey);
+    updateAveragesUI();
+
+    stopAmbientWithFade(AMB.softHum);
+    stopAmbientWithFade(AMB.hum);
+
+    startCoolHumLoop();
+    playSafe(SFX.buzz);
+
+    const m = pickFromPool("Lose");
+    showModalTypedSequence([m],{
+      showContinue:true,
+      onClose:()=>endScreen(false),
+      keepCoolHum:true,
+      loseFadeCoolHum:true
+    });
+  }
+
+  function handleGuessSubmit(){
+    if (!game || game.done) return;
+    if (game.remaining <= 0){ failGame(); return; }
+
+    if (entry.length > 4){
+      playSafe(SFX.buzz);
+      showModalTypedSequence([{text:"UNACCEPTABLE ENTRY. TOO MANY DIGITS.",file:null,seconds:1}],{showContinue:true});
+      entry=""; renderEntry();
+      return;
+    }
+
+    const guessStr=entry.padStart(4,"0");
+    const guess4=guessStr.split("");
+
+    playSafe(SFX.beep);
+
+    const displayCountdown = game.remaining;
+
+    const set=game.solvedSets;
+    const secret4=game.code.slice(set*4,set*4+4);
+    const {correct,wrongPos}=scoreGuess(secret4,guess4);
+
+    game.totalTurns++;
+    game.turnsPerSet[set]++;
+    game.remaining--;
+
+    addLogRow(displayCountdown, guess4, correct, wrongPos);
+    updateHeaderUI();
+
+    if (correct === 4){
+      for (let j=0;j<4;j++){
+        const idx=set*4+j;
+        const cell=digitGrid.children[idx];
+        cell.textContent=game.code[idx];
+        cell.classList.add("solved");
+      }
+      playSafe(SFX.got4);
+
+      const turnsThisSet=game.turnsPerSet[set];
+
+      let quickKey = null;
+      if (turnsThisSet === 1) quickKey = "All 4 on first guess";
+      else if (turnsThisSet === 2) quickKey = "All 4 on second guess";
+      else if (turnsThisSet === 3) quickKey = "All 4 on third guess";
+
+      const quick = quickKey ? pickFromPool(quickKey) : null;
+
+      game.solvedSets++;
+
+      game.turnsAtLastCompletion = game.totalTurns;
+      updateAveragesUI();
+
+      if (game.solvedSets === 3) switchToSet4Hum();
+
+      if (game.solvedSets >= 4){
+        game.done=true;
+
+        for (let i=0;i<16;i++){
+          const cell=digitGrid.children[i];
+          cell.textContent=game.code[i];
+          cell.classList.add("solved");
+        }
+
+        playSafe(SFX.got16);
+        stopAmbientWithFade(AMB.hum);
+        startCoolHumLoop();
+
+        game.avgOverride = "";
+        updateAveragesUI();
+
+        const w = pickFromPool("Win");
+        winAwaitingLaunch=true;
+
+        setTimeout(()=>{
+          showModalTypedSequence([w],{
+            showContinue:false, showLaunch:true,
+            onLaunch:()=>playLaunchVideoThenAfter(),
+            keepCoolHum:true
+          });
+        }, 1000);
+
+        entry=""; renderEntry();
+        return;
+      }
+
+      const nextStep=()=>{
+        if (game.remaining <= 0){ failGame(); return; }
+        clearLogForNextSet();
+        updateHeaderUI();
+        msg(`SYSTEM: Proceed to Set ${game.solvedSets+1}.`);
+        markActiveSet();
+      };
+
+      if (quick){
+        showModalTypedSequence([quick], { showContinue:true, onClose: nextStep });
+      } else {
+        const realAvg = game.turnsAtLastCompletion / game.solvedSets;
+        const avgMsg = pickAvgMessage(realAvg, game.levelKey);
+        showModalTypedSequence([avgMsg], { showContinue:true, onClose: nextStep });
+      }
+    } else {
+      if (game.remaining <= 0){
+        failGame();
+        entry=""; renderEntry();
+        return;
+      }
+    }
+
+    entry=""; renderEntry();
+  }
+
+  function addDigit(d){
+    if (!game || game.done) return;
+    if (modal.classList.contains("show") || videoModal.classList.contains("show")) return;
+    if (entry.length >= 4){
+      playSafe(SFX.buzz);
+      showModalTypedSequence([{text:"UNACCEPTABLE ENTRY. TOO MANY DIGITS.",file:null,seconds:1}],{showContinue:true});
+      entry=""; renderEntry();
+      return;
+    }
+    entry += d;
+    renderEntry();
+  }
+  function backspace(){
+    if (!game || game.done) return;
+    if (modal.classList.contains("show") || videoModal.classList.contains("show")) return;
+    entry = entry.slice(0,-1);
+    renderEntry();
+  }
+
+  function handleEnter(){
+    if (!welcomeAccepted){
+      const btn = document.getElementById("welcomeEnterBtn");
+      if (btn) btn.click();
+      return;
+    }
+    if (videoModal.classList.contains("show")) return;
+    if (modal.classList.contains("show")){ modalOk.click(); return; }
+    if (winAwaitingLaunch){ playLaunchVideoThenAfter(); return; }
+    if (!game){
+      playSafe(SFX.buzz);
+      showModalTypedSequence([{text:"SELECT A LEVEL OF PLAY FIRST.",file:null,seconds:1}],{showContinue:true});
+      return;
+    }
+    handleGuessSubmit();
+  }
+
+  keypadEl.addEventListener("click",(e)=>{
+    const btn=e.target.closest("[data-key]");
+    if (!btn) return;
+    const key=btn.dataset.key;
+    if (key==="enter") handleEnter();
+    else if (key==="back") backspace();
+    else addDigit(key);
+  });
+
+  document.addEventListener("keydown",(e)=>{
+    if (e.key==="Enter"){ e.preventDefault(); handleEnter(); return; }
+    if (!welcomeAccepted) return;
+    if (e.key==="Backspace"){ e.preventDefault(); if(!modal.classList.contains("show")) backspace(); return; }
+    if (/^[0-9]$/.test(e.key)){ e.preventDefault(); if(!modal.classList.contains("show")) addDigit(e.key); return; }
+    if (game && !game.done && !modal.classList.contains("show")){
+      if (e.key.length===1 && !/^[0-9]$/.test(e.key)){
+        playSafe(SFX.buzz);
+        showModalTypedSequence([{text:"UNACCEPTABLE ENTRY. DIGITS ONLY.",file:null,seconds:1}],{showContinue:true});
+      }
+    }
+  });
+
+  // ---------------- Launch video flow ----------------
+  let launchInProgress = false;
+  let codeMusicTimer = null;
+
+  async function playLaunchVideoThenAfter(){
+    if (!game || game.launched || launchInProgress) return;
+    launchInProgress = true;
+    game.launched = true;
+
+    stopCoolHum();
+    stopAmbientWithFade(AMB.hum);
+    stopAmbientWithFade(AMB.softHum);
+
+    videoModal.classList.add("show");
+
+    try{
+      launchVideo.currentTime = 0;
+      launchVideo.loop = false;
+      launchVideo.muted = false;
+      await launchVideo.play();
+    }catch(_){}
+
+    if (codeMusicTimer) clearTimeout(codeMusicTimer);
+    codeMusicTimer = setTimeout(()=>{
+      setLoop(MUSIC.code, false);
+      playSafe(MUSIC.code);
+    }, 1200);
+
+    const proceed = () => {
+      launchVideo.removeEventListener("ended", proceed);
+      videoModal.classList.remove("show");
+      launchInProgress = false;
+
+      const m = pickFromPool("After Launch");
+      showModalTypedSequence([m],{
+        showContinue:true,
+        onClose:()=>{
+          // After win: restore full log across all sets (scrollable)
+          rebuildFullLog();
+          playGameEndOnce();
+          endScreen(true);
+        },
+        keepCoolHum:false
+      });
+    };
+
+    launchVideo.addEventListener("ended", proceed, { once:true });
+    setTimeout(()=>{ if (videoModal.classList.contains("show")) proceed(); }, 6800);
+  }
+
+
+ // ---------------- Satellites: 30-second crossing target ----------------
+  (function(){
+    const canvas = document.getElementById("particles");
+    const ctx = canvas.getContext("2d", { alpha:true });
+    let W=0,H=0,DPR=1;
+
+    const TARGET_CROSS_SECONDS = 30;
+
+    const REF_W = 1920;
+    const REF_H = 1080;
+    const P = [
+      {x:   0, y:-216},
+      {x: 700, y:-240},
+      {x:1027, y:-304},
+      {x:1296, y:-380},
+      {x:1567, y:-490},
+      {x:1920, y:-660},
+    ].map(p => ({ x: p.x/REF_W, y: p.y/REF_H }));
+
+    function catmullRom(p0, p1, p2, p3, t){
+      const t2=t*t, t3=t2*t;
+      return 0.5 * ((2*p1) + (-p0+p2)*t + (2*p0-5*p1+4*p2-p3)*t2 + (-p0+3*p1-3*p2+p3)*t3);
+    }
+    function yRaw(x){
+      x = Math.max(0, Math.min(1, x));
+      let i=0;
+      while (i < P.length-2 && x > P[i+1].x) i++;
+      const p1=P[i];
+      const p2=P[Math.min(i+1, P.length-1)];
+      const p0=P[Math.max(i-1, 0)];
+      const p3=P[Math.min(i+2, P.length-1)];
+      const span = (p2.x - p1.x) || 1e-6;
+      const t = (x - p1.x)/span;
+      return catmullRom(p0.y, p1.y, p2.y, p3.y, t);
+    }
+
+    const yLeftRaw  = P[0].y;
+    const yRightRaw = P[P.length-1].y;
+    const yLeftTarget  = 0.125;
+    const yRightTarget = 0.625;
+    const A = (yRightTarget - yLeftTarget) / (yRightRaw - yLeftRaw);
+    const B = yLeftTarget - A * yLeftRaw;
+    function yMapped(x){ return A * yRaw(x) + B; }
+
+    function rand(min,max){ return min + Math.random()*(max-min); }
+
+    let active=null;
+    let nextSpawnAt = performance.now() + rand(2500, 9000);
+
+    function resize(){
+      DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      W = Math.floor(window.innerWidth);
+      H = Math.floor(window.innerHeight);
+      canvas.width  = Math.floor(W*DPR);
+      canvas.height = Math.floor(H*DPR);
+      canvas.style.width = W+"px";
+      canvas.style.height = H+"px";
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+    }
+
+    function spawn(now){
+      const leftToRight = Math.random() < 0.5;
+      const xStart = leftToRight ? -16 : W + 16;
+
+      const distance = W + 32;
+      const baseSpeed = distance / TARGET_CROSS_SECONDS;
+      const speed = baseSpeed * rand(0.92, 1.08);
+      const vx = leftToRight ? speed : -speed;
+
+      active = {
+        x:xStart, vx,
+        r: rand(0.85, 1.25),
+        a: rand(0.65, 0.95),
+        wigAmp: rand(0.0, 1.2),
+        wigHz:  rand(0.12, 0.22),
+        wigPh:  rand(0, Math.PI*2),
+        born: now
+      };
+    }
+
+    function scheduleNext(now){
+      active=null;
+      nextSpawnAt = now + rand(8000, 26000);
+    }
+
+    let last = performance.now();
+    function tick(now){
+      const dt = Math.min(0.05, Math.max(0, (now-last)/1000));
+      last = now;
+
+      ctx.clearRect(0,0,W,H);
+
+      if (!active && now >= nextSpawnAt) spawn(now);
+
+      if (active){
+        active.x += active.vx * dt;
+
+        const xNorm = Math.max(0, Math.min(1, active.x / W));
+        const yFrac = yMapped(xNorm);
+        const yCurve = yFrac * H;
+
+        const yWig = active.wigAmp * Math.sin((now/1000) * (2*Math.PI*active.wigHz) + active.wigPh);
+        const y = yCurve + yWig;
+
+        ctx.beginPath();
+        ctx.arc(active.x, y, active.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,255,255,${active.a})`;
+        ctx.fill();
+
+        const off = (active.vx>0 && active.x>W+30) || (active.vx<0 && active.x<-30);
+        if (off) scheduleNext(now);
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+    requestAnimationFrame(tick);
+  })();
+
+  // ---------------- Boot ----------------
+  function init(){
+
+const launchPanel = document.getElementById("launchPanel");
+if (launchPanel){
+  launchPanel.addEventListener("scroll", ()=>{
+    followMiddleBottom = isNearBottom(launchPanel);
+  }, {passive:true});
+}
+
+    renderKeypad("game");
+    buildDigitGrid(true);
+    entry="";
+    initAllPools();
+    resetToMenu(false);
+    renderEntry();
+  }
+  init();
+
+
+// Mobile: keep the middle panel following the newest entry
+if (document.body.classList.contains("mobileShell")) {
+  const mid = document.getElementById("launchPanel");
+  if (mid) requestAnimationFrame(() => requestAnimationFrame(() => { mid.scrollTop = mid.scrollHeight; }));
+}
+})();
+
+</script>
+
+</body>
+</html>
