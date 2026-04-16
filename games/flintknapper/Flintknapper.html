@@ -1,6 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
 <head>
+
+<style>
+  .corner-link {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000; /* Ensures it stays above other elements */
+    font-family: sans-serif;
+    font-size: 14px;
+    text-decoration: none;
+    color: #0000EE; /* Standard link blue */
+  }
+
+  .corner-link:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<a href="https://klemport.net/klemport/Flintknapper-Instructions.pdf" 
+   class="corner-link" 
+   target="_blank">
+   Info
+</a>
+
+
 <meta charset="UTF-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -151,6 +177,7 @@ button {
 </div>
 
 <script>
+// Using literal symbols for better compatibility and readability
 const suits=["♠","♥","♦","♣"];
 const values=[1,2,3,4,5,6,7,8,9,10,11,12,13];
 
@@ -231,8 +258,9 @@ function renderPiles(){
   d.innerHTML="";
   if(currentCard){
     const c=document.createElement("div");
+    // Checking for Heart or Diamond suit
     c.className="card "+((currentCard.s==="♥"||currentCard.s==="♦")?"red":"");
-    c.textContent=label(currentCard.v)+currentCard.s;
+    c.innerHTML=label(currentCard.v)+currentCard.s; // Changed to innerHTML
     d.appendChild(c);
   }
 }
@@ -249,8 +277,9 @@ function drawCard(){
 
 function placeCard(cell,card){
   const d=document.createElement("div");
+  // Checking for Heart or Diamond suit
   d.className="card "+((card.s==="♥"||card.s==="♦")?"red":"");
-  d.textContent=label(card.v)+card.s;
+  d.innerHTML=label(card.v)+card.s; // Changed to innerHTML
   d.card=card;
   cell.appendChild(d);
 }
