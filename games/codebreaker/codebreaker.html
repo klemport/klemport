@@ -135,6 +135,13 @@
       user-select:none;
     }
     .digitCell.solved{ color:var(--ok); border-color: rgba(125,255,155,0.35); background: rgba(0,0,0,0.28); }
+
+.digitCell.missed {
+  color: #888888;
+  text-shadow: none;
+  border-color: rgba(136,136,136,0.25);
+}
+
     .digitCell.active{ border-color: rgba(97,208,255,0.45); box-shadow: 0 0 0 2px rgba(97,208,255,0.10) inset; }
 
     .introText{ color:var(--text); font-size:13px; line-height:1.5; }
@@ -1106,10 +1113,323 @@ function scrollMiddleToBottom(force=false){
   const INTRO_TEXT = `An asteroid is hurling toward earth and time is running out! The scientist who devised a special defense missile is missing! He is the only one that knows the 16-digit launch code! The security system will only allow a certain number of guesses. You must decipher the code 4 numbers at a time. If you enter less than 4 digits, zeros will be added to the front. A, B, C, & D represent the 4 numbers. After each guess the system will tell you how many you got completely right (HITS), and how many you got right but in the wrong A-B-C-D position (ECHOES). You'll get closer and closer to the answer each turn, if you use your information wisely. Life on earth is depending on you! Good luck!`;
 
   const LEVELS={ easy:{name:"Easy",guesses:43}, medium:{name:"Medium",guesses:35}, hard:{name:"Hard",guesses:27} };
-  const ODDS={ pi:0.02, phi:0.02, fib:0.10 };
+
+const ODDS = {
+  pi: 0.02,
+  phi: 0.02,
+  e: 0.02,
+  fib: 0.10,
+  prime: 0.10,
+  langford: 0.10
+};
   const PI_CODE="3141592653589793".split("");
   const PHI_CODE="1618033988749894".split("");
+  const E_CODE="2718281828459045".split("");
   const FIB_DIGITS = ["0","1","2","3","5","8"];
+  const PRIME_DIGITS = ["2","3","5","7"];
+  const LANGFORD_CODES = [
+"1316738524627548",
+"1316837425624875",
+"1318536724528647",
+"1415784365237286",
+"1514678542362738",
+"1516782542637483",
+"1518473564328726",
+"1613784365247285",
+"1617285263475384",
+"1618274265348735",
+"1712852637453864",
+"1713845367425826",
+"1714853647352862",
+"1718246257438653",
+"1815267245836473",
+"2382436754181657",
+"2452684753161387",
+"2462784516137583",
+"2572368534716148",
+"2572861514736843",
+"2632853764151847",
+"2682171465384735",
+"2812156734853647",
+"2812167345836475",
+"2832463754816157",
+"2862171456834753",
+"3171384562742586",
+"3181347562482576",
+"3456384752612187",
+"3564378546121728",
+"3582372564181746",
+"3645378465121728",
+"3681317465284275",
+"3758316157428624",
+"3847326425871615",
+"3862352746851417",
+"4161845726325837",
+"4258246751318637",
+"4567348536271218",
+"4618147365238275",
+"4672842365731815",
+"4718143567328526",
+"4852642753861317",
+"5181365734286247",
+"5283275364181746",
+"5378235264718146",
+"5814165743826327",
+"5841715463827326",
+"6274258643751318",
+"7245268475316138",
+"1316834752642857",
+"1317538642572468",
+"1318637245268475",
+"1415864725326837",
+"1516478534623728",
+"1517368534276248",
+"1518627523468374",
+"1613857362452874",
+"1617483564372582",
+"1712682537463584",
+"1712862357436854",
+"1714586347532682",
+"1716285247635483",
+"1813475364825726",
+"1815374635842762",
+"2382437564181576",
+"2452864751316837",
+"2472864151736853",
+"2572638543761418",
+"2582473564381716",
+"2642783465317185",
+"2732583467514186",
+"2812157463854376",
+"2812174635843765",
+"2842367435816175",
+"3171358642752468",
+"3171386425724685",
+"3181367245286475",
+"3478324625718165",
+"3568327526418174",
+"3627328564171548",
+"3672382465714185",
+"3681317562482574",
+"3782342567481516",
+"3852362754816147",
+"4161748356237258",
+"4181742562387536",
+"4268243756318157",
+"4578141563728326",
+"4635843765121827",
+"4682542763581317",
+"4753648357261218",
+"5161845736423827",
+"5247285463171386",
+"5286235743681417",
+"5618145763428327",
+"5823725364817146",
+"6151748653427328",
+"6357438654271218",
+"7246258473651318",
+"1316835724625847",
+"1317835264275846",
+"1415684735263287",
+"1418634753268257",
+"1516738543627428",
+"1517386532472684",
+"1613758364257248",
+"1615847365432872",
+"1618257263458374",
+"1712852467354836",
+"1713568347526428",
+"1714683547362582",
+"1716384537642582",
+"1814637543862572",
+"2362834756141857",
+"2382736151487654",
+"2462584736513187",
+"2482374635181765",
+"2572834563741816",
+"2632783561417584",
+"2672815164735843",
+"2742853467351816",
+"2812164753846357",
+"2812175364835746",
+"2852716154837643",
+"3171368524726548",
+"3181346752482657",
+"3181375264285746",
+"3485374265281716",
+"3568371516428724",
+"3628327561418574",
+"3681315764285247",
+"3726328457614158",
+"3825327465814176",
+"3861315746825427",
+"4161748526327538",
+"4257248653171368",
+"4275248635713168",
+"4617148562372538",
+"4637843265271815",
+"4716148537623528",
+"4815146735823627",
+"5171835463724826",
+"5248275461318736",
+"5364835746121827",
+"5628425764318137",
+"5824625743861317",
+"6257248653471318",
+"7141568473526328",
+"7345638475261218",
+"8457264258376131",
+"5784265247386131",
+"7468254276358131",
+"6827325634875141",
+"8372632458764151",
+"3847362452876151",
+"6278234653748151",
+"5827425634873161",
+"4835743625827161",
+"5378435624728161",
+"4683547362582171",
+"6285247635483171",
+"2682537463584171",
+"3568347526428171",
+"3746385427625181",
+"7561814576342832",
+"7831613574862542",
+"3857316154872642",
+"8416174358632752",
+"3486374151682752",
+"7481514673582362",
+"5374835641712862",
+"7463584376512182",
+"5746385437612182",
+"7516184573642382",
+"3574386541712682",
+"6852472654831713",
+"6752842657431813",
+"7812162574836543",
+"8271216458734653",
+"6471814652732853",
+"8271215648735463",
+"5724825647131863",
+"4268247516138573",
+"5161785246237483",
+"7141586472532683",
+"7385236275481614",
+"7368131576428524",
+"8121726358437654",
+"5728325637418164",
+"5181375632482764",
+"6258237653418174",
+"7131683572462584",
+"7426824375631815",
+"6471814635723825",
+"6418174625328735",
+"7236283475614185",
+"6237283645171485",
+"8131573468524726",
+"8316135748625427",
+"7582462574386131",
+"8642752468357131",
+"5748625427368131",
+"7386235274685141",
+"8273264358746151",
+"8426724358637151",
+"4738643257268151",
+"4782542637583161",
+"2852734653847161",
+"4853647352862171",
+"4586347532682171",
+"2862357436854171",
+"3845367425826171",
+"6275284635743181",
+"2672485364735181",
+"6751814657342832",
+"7386131574682542",
+"3586371514682742",
+"8141673458362752",
+"6171834653742852",
+"5817135643872462",
+"6814157643852372",
+"6734583647512182",
+"5673485364712182",
+"5716185347632482",
+"8642572468531713",
+"5864275246831713",
+"5746825427631813",
+"5618175264238743",
+"4718146257238653",
+"8451714658237263",
+"5814175642832763",
+"4752842657131863",
+"6151847652432873",
+"7416184572632583",
+"8527326538471614",
+"6357832652471814",
+"7518136573428624",
+"6238273651418754",
+"7281215673485364",
+"7131853672452864",
+"8121627538463574",
+"7283246375481615",
+"6831713645827425",
+"7141863475326825",
+"7238243675418165",
+"6417184635273285",
+"8237243568471516",
+"8121724568347536",
+"8131563748526427",
+"7485264275386131",
+"6485724625387131",
+"7823625374865141",
+"7528623574368141",
+"8247263458376151",
+"4862742356837151",
+"8427524638573161",
+"2782345637485161", 
+"4738543627528161",
+"6384537642582171",
+"8246257438653171",
+"2852637453864171",
+"2852467354836171",
+"2752683457364181",
+"7581416574382632",
+"4567841516372832",
+"7813156374852642",
+"5671815364732842",
+"6181473654382752",
+"4857141653872362",
+"3485374615182762",
+"6181537643582472",
+"7536483574612182",
+"6475384635712182",
+"3467384516172582",
+"8456274258631713",
+"7562842576431813",
+"6475824625731813",
+"6171825624735843",
+"4278246151738653",
+"4758141657238263",
+"7425824675131863",
+"8514167548236273",
+"6714185647235283",
+"7245286475131683",
+"8357236258471614",
+"8631713568427524",
+"8613175368425724",
+"8352732658417164",
+"5181725623487364",
+"8253267358416174",
+"7263285376415184",
+"6284273645381715",
+"6378131645728425",
+"7281216475384635",
+"7318134675248265",
+"7131683475264285",
+"8131743568427526",
+"8236253748651417",
+"8121625748365437",
+
+];
 
   let game=null;
   let rollTimer=null;
@@ -1119,39 +1439,69 @@ function scrollMiddleToBottom(force=false){
 
   function renderEntry(){ entryBox.textContent=entry.padEnd(4,"_"); }
 
-  function pickOccurrence(forcedMode){
-    if (forcedMode==="fib") return "fib";
-    const r=Math.random();
-    if (r < ODDS.pi) return "pi";
-    if (r < ODDS.pi+ODDS.phi) return "phi";
-    if (r < ODDS.pi+ODDS.phi+ODDS.fib) return "fib";
-    return "std";
-  }
+  function pickOccurrence(forcedMode = null) {
+  if (forcedMode) return forcedMode;
+
+  const r = Math.random();
+
+  if (r < ODDS.pi) return "pi";
+  if (r < ODDS.pi + ODDS.phi) return "phi";
+  if (r < ODDS.pi + ODDS.phi + ODDS.e) return "e";
+
+  if (r < ODDS.pi + ODDS.phi + ODDS.e + ODDS.fib)
+    return "fib";
+
+  if (r < ODDS.pi + ODDS.phi + ODDS.e + ODDS.fib + ODDS.prime)
+    return "prime";
+
+  if (
+    r < ODDS.pi + ODDS.phi + ODDS.e +
+        ODDS.fib + ODDS.prime + ODDS.langford
+  ) return "langford";
+
+  return "std";
+}
+
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
-  function generateCode16(forcedMode=null){
-    const mode=pickOccurrence(forcedMode);
-    if (mode==="pi") return PI_CODE.slice();
-    if (mode==="phi") return PHI_CODE.slice();
+  function generateCode16(forcedMode = null) {
+  const mode = pickOccurrence(forcedMode);
 
-    const digits=[];
-    for (let s=0;s<4;s++){
-      let seq = "";
-      if (mode==="fib"){
-        seq += randChoice(FIB_DIGITS);
-        seq += randChoice(FIB_DIGITS);
-        seq += randChoice(FIB_DIGITS);
-        seq += randChoice(FIB_DIGITS);
-      } else {
-        seq += String(Math.floor(Math.random()*10));
-        seq += String(Math.floor(Math.random()*10));
-        seq += String(Math.floor(Math.random()*10));
-        seq += String(Math.floor(Math.random()*10));
-      }
-      digits.push(...seq.split(""));
-    }
-    return digits;
+  if (mode === "pi") return PI_CODE.slice();
+  if (mode === "phi") return PHI_CODE.slice();
+  if (mode === "e") return E_CODE.slice();
+
+  if (mode === "langford") {
+    return randChoice(LANGFORD_CODES).split("");
   }
+
+  const digits = [];
+
+  for (let s = 0; s < 4; s++) {
+    let seq = "";
+
+if (mode === "fib") {
+  seq += randChoice(FIB_DIGITS);
+  seq += randChoice(FIB_DIGITS);
+  seq += randChoice(FIB_DIGITS);
+  seq += randChoice(FIB_DIGITS);
+} else if (mode === "prime") {
+  seq += randChoice(PRIME_DIGITS);
+  seq += randChoice(PRIME_DIGITS);
+  seq += randChoice(PRIME_DIGITS);
+  seq += randChoice(PRIME_DIGITS);
+} else {
+  seq += String(Math.floor(Math.random() * 10));
+  seq += String(Math.floor(Math.random() * 10));
+  seq += String(Math.floor(Math.random() * 10));
+  seq += String(Math.floor(Math.random() * 10));
+}
+
+    digits.push(...seq.split(""));
+  }
+
+  return digits;
+}
 
   function scoreGuess(secret4, guess4){
     let correct=0;
@@ -1336,15 +1686,26 @@ function clearLogForNextSet(){
         <button class="btn small" data-level="hard">Hard</button>
       </div>
     `;
-    document.getElementById("levelRow").addEventListener("click",(e)=>{
-      const b=e.target.closest("button[data-level]");
-      if (!b || !welcomeAccepted) return;
-      const level=b.dataset.level;
-      const forceFib=(level==="hard" && e.shiftKey===true);
-      newGame(level, forceFib ? "fib" : null);
-    });
-    msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
+ 
+   document.getElementById("levelRow").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-level]");
+  if (!b || !welcomeAccepted) return;
+
+  const level = b.dataset.level;
+  const forcePrime = level === "hard" && e.shiftKey;
+  const forceLangford = level === "hard" && e.ctrlKey;
+
+  if (forceLangford) {
+    newGame(level, "langford");
+  } else if (forcePrime) {
+    newGame(level, "prime");
+  } else {
+    newGame(level, null);
   }
+});
+
+msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
+}
 
   function acceptWelcomeGate(){
     if (welcomeAccepted) return;
@@ -1439,27 +1800,42 @@ function clearLogForNextSet(){
     updateAveragesUI();
   }
 
-  function failGame(){
-    if (!game || game.done) return;
-    game.done=true;
+ function failGame(){
+  if (!game || game.done) return;
+  game.done = true;
 
-    game.avgOverride = lossAvgString(game.levelKey);
-    updateAveragesUI();
+  // Reveal all undiscovered digits in gray.
+  stopRolling();
 
-    stopAmbientWithFade(AMB.softHum);
-    stopAmbientWithFade(AMB.hum);
+  for (let i = 0; i < 16; i++) {
+    const cell = digitGrid.children[i];
 
-    startCoolHumLoop();
-    playSafe(SFX.buzz);
+    cell.classList.remove("active");
 
-    const m = pickFromPool("Lose");
-    showModalTypedSequence([m],{
-      showContinue:true,
-      onClose:()=>endScreen(false),
-      keepCoolHum:true,
-      loseFadeCoolHum:true
-    });
+    if (!cell.classList.contains("solved")) {
+      cell.textContent = game.code[i];
+      cell.classList.add("missed");
+    }
   }
+
+  game.avgOverride = lossAvgString(game.levelKey);
+  updateAveragesUI();
+
+  stopAmbientWithFade(AMB.softHum);
+  stopAmbientWithFade(AMB.hum);
+
+  startCoolHumLoop();
+  playSafe(SFX.buzz);
+
+  const m = pickFromPool("Lose");
+  showModalTypedSequence([m], {
+    showContinue: true,
+    onClose: () => endScreen(false),
+    keepCoolHum: true,
+    loseFadeCoolHum: true
+  });
+}
+
 
   function handleGuessSubmit(){
     if (!game || game.done) return;
