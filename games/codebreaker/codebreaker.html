@@ -1169,16 +1169,24 @@ function scrollMiddleToBottom(force=false){
   const LEVELS={ easy:{name:"Easy",guesses:43}, medium:{name:"Medium",guesses:35}, hard:{name:"Hard",guesses:27} };
 
 const ODDS = {
-  pi: 0.04,
-  phi: 0.04,
-  e: 0.04,
-  fib: 0.08,
-  prime: 0.10,
-  langford: 0.20
+  pi: 0.03,
+  phi: 0.03,
+  e: 0.03,
+  bdate: 0.03,
+  sqtwo: 0.03,
+  hi: 0.03,
+  tau: 0.03,
+  fib: 0.03,
+  prime: 0.03,
+  langford: 0.23
 };
-  const PI_CODE="3141592653589793".split("");
-  const PHI_CODE="1618033988749894".split("");
-  const E_CODE="2718281828459045".split("");
+  const PI_CODE = "3141592653589793".split("");
+  const PHI_CODE = "1618033988749894".split("");
+  const E_CODE = "2718281828459045".split("");
+  const BDATE_CODE = "1010196323470000".split("");
+  const SQTWO_CODE = "1414213562373095".split("");
+  const HI_CODE = "0100100001101001".split("");
+  const TAU_CODE = "6283185307179586".split("");
   const FIB_DIGITS = ["0","1","2","3","5","8"];
   const PRIME_DIGITS = ["2","3","5","7"];
   const LANGFORD_CODES = [
@@ -1493,63 +1501,79 @@ const ODDS = {
 
   function renderEntry(){ entryBox.textContent=entry.padEnd(4,"_"); }
 
-  function pickOccurrence(forcedMode = null) {
+function pickOccurrence(forcedMode = null) {
   if (forcedMode) return forcedMode;
 
   const r = Math.random();
+  let cumulative = 0;
 
-  if (r < ODDS.pi) return "pi";
-  if (r < ODDS.pi + ODDS.phi) return "phi";
-  if (r < ODDS.pi + ODDS.phi + ODDS.e) return "e";
+  const modes = [
+    ["pi", ODDS.pi],
+    ["phi", ODDS.phi],
+    ["e", ODDS.e],
+    ["bdate", ODDS.bdate],
+    ["sqtwo", ODDS.sqtwo],
+    ["hi", ODDS.hi],
+    ["tau", ODDS.tau],
+    ["fib", ODDS.fib],
+    ["prime", ODDS.prime],
+    ["langford", ODDS.langford]
+  ];
 
-  if (r < ODDS.pi + ODDS.phi + ODDS.e + ODDS.fib)
-    return "fib";
+  for (const [mode, odds] of modes) {
+    cumulative += odds;
 
-  if (r < ODDS.pi + ODDS.phi + ODDS.e + ODDS.fib + ODDS.prime)
-    return "prime";
-
-  if (
-    r < ODDS.pi + ODDS.phi + ODDS.e +
-        ODDS.fib + ODDS.prime + ODDS.langford
-  ) return "langford";
+    if (r < cumulative) {
+      return mode;
+    }
+  }
 
   return "std";
 }
 
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
-  function generateCode16(forcedMode = null) {
+function generateCode16(forcedMode = null) {
   const mode = pickOccurrence(forcedMode);
 
+  // Fixed 16-digit sequences
   if (mode === "pi") return PI_CODE.slice();
   if (mode === "phi") return PHI_CODE.slice();
   if (mode === "e") return E_CODE.slice();
+  if (mode === "bdate") return BDATE_CODE.slice();
+  if (mode === "sqtwo") return SQTWO_CODE.slice();
+  if (mode === "hi") return HI_CODE.slice();
+  if (mode === "tau") return TAU_CODE.slice();
 
+  // Langford sequences
   if (mode === "langford") {
     return randChoice(LANGFORD_CODES).split("");
   }
 
+  // Generate the remaining modes digit by digit
   const digits = [];
 
   for (let s = 0; s < 4; s++) {
     let seq = "";
 
-if (mode === "fib") {
-  seq += randChoice(FIB_DIGITS);
-  seq += randChoice(FIB_DIGITS);
-  seq += randChoice(FIB_DIGITS);
-  seq += randChoice(FIB_DIGITS);
-} else if (mode === "prime") {
-  seq += randChoice(PRIME_DIGITS);
-  seq += randChoice(PRIME_DIGITS);
-  seq += randChoice(PRIME_DIGITS);
-  seq += randChoice(PRIME_DIGITS);
-} else {
-  seq += String(Math.floor(Math.random() * 10));
-  seq += String(Math.floor(Math.random() * 10));
-  seq += String(Math.floor(Math.random() * 10));
-  seq += String(Math.floor(Math.random() * 10));
-}
+    if (mode === "fib") {
+      seq += randChoice(FIB_DIGITS);
+      seq += randChoice(FIB_DIGITS);
+      seq += randChoice(FIB_DIGITS);
+      seq += randChoice(FIB_DIGITS);
+
+    } else if (mode === "prime") {
+      seq += randChoice(PRIME_DIGITS);
+      seq += randChoice(PRIME_DIGITS);
+      seq += randChoice(PRIME_DIGITS);
+      seq += randChoice(PRIME_DIGITS);
+
+    } else {
+      seq += String(Math.floor(Math.random() * 10));
+      seq += String(Math.floor(Math.random() * 10));
+      seq += String(Math.floor(Math.random() * 10));
+      seq += String(Math.floor(Math.random() * 10));
+    }
 
     digits.push(...seq.split(""));
   }
