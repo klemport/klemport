@@ -904,15 +904,30 @@ function scrollMiddleToBottom(force=false){
 
 // ---------------- Comments: weighted + non-repeating until pool exhausted ----------------
   const COMMENT_POOLS = {
-    "All 4 on first guess": [
+
+    "All 4 on first guess — group 1": [
+      { text:"CAN YOU SAY FELIX FELICIS?", file:"V-Felix.mp3", seconds:2, weight:1 },
+      { text:"MAY THE ODDS BE EVER IN YOUR FAVOR.", file:"V-Odds.mp3", seconds:2, weight:1 },
+    ],
+
+    "All 4 on first guess — group 2": [
+      { text:"WITH A LITTLE LUCK WE CAN HELP IT OUT. WE CAN MAKE THIS WHOLE DAMN THING WORK OUT.", file:"V-LittleLuck.mp3", seconds:5, weight:1 },
+      { text:"INVESTIGATING THE POSSIBILITY OF QUANTUM PROBABILITY MANIPULATION.", file:"V-Investigating.mp3", seconds:4, weight:1 },
+      { text:"IN MY EXPERIENCE, THERE'S NO SUCH THING AS LUCK.", file:"V-Luck.mp3", seconds:3, weight:1 },
+    ],
+
+    "All 4 on first guess — group 3": [
       { text:"GETTING FOUR DIGITS IN ONE GUESS SEEMS AMAZINGLY SUSPICIOUS. SCANNING FOR MATRIX ANOMALIES.", file:"V-Scanning.mp3", seconds:6, weight:1 },
     ],
+
     "All 4 on second guess": [
       { text:"THE FORCE IS STRONG WITH THIS ONE!", file:"V-ForceStrong.mp3", seconds:2, weight:1 },
     ],
+
     "All 4 on third guess": [
       { text:"WELL DONE! THIS IS THE WAY.", file:"V-TheWay.mp3", seconds:2, weight:1 },
     ],
+
 
     "Ave <6.5": [
       { text:"YOUR AVERAGE IS QUITE LOW. FASCINATING.", file:"V-Fascinating.mp3", seconds:3, weight:2 },
@@ -1769,17 +1784,16 @@ function clearLogForNextSet(){
   const b = e.target.closest("button[data-level]");
   if (!b || !welcomeAccepted) return;
 
-  const level = b.dataset.level;
-  const forcePrime = level === "hard" && e.shiftKey;
-  const forceLangford = level === "hard" && e.ctrlKey;
+  const level = b.dataset.level; 
+  const forceBdate = level === "hard" && e.shiftKey;
+  const forceLangford = level === "hard" && e.ctrlKey; 
 
-  if (forceLangford) {
-    newGame(level, "langford");
-  } else if (forcePrime) {
-    newGame(level, "prime");
-  } else {
-    newGame(level, null);
-  }
+if (forceLangford) { 
+    newGame(level, "langford"); 
+  } else if (forceBdate) { 
+    newGame(level, "bdate"); 
+  } else { newGame(level, null); 
+  } 
 });
 
 msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
@@ -1955,12 +1969,22 @@ msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
 
       const turnsThisSet=game.turnsPerSet[set];
 
+
       let quickKey = null;
-      if (turnsThisSet === 1) quickKey = "All 4 on first guess";
-      else if (turnsThisSet === 2) quickKey = "All 4 on second guess";
-      else if (turnsThisSet === 3) quickKey = "All 4 on third guess";
+
+      if (turnsThisSet === 1) {
+        if (set === 0) quickKey = "All 4 on first guess — group 1";
+        else if (set === 1) quickKey = "All 4 on first guess — group 2";
+        else if (set === 2) quickKey = "All 4 on first guess — group 3";
+        // Group 4 has no special first-guess comment.
+      } else if (turnsThisSet === 2) {
+        quickKey = "All 4 on second guess";
+      } else if (turnsThisSet === 3) {
+        quickKey = "All 4 on third guess";
+      }
 
       const quick = quickKey ? pickFromPool(quickKey) : null;
+    
 
       game.solvedSets++;
 
