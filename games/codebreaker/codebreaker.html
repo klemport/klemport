@@ -983,8 +983,11 @@ function scrollMiddleToBottom(force=false){
     ],
 
     "Lose": [
-      { text:"GOOD THING THIS WAS A SIMULATION. BETTER LUCK NEXT TIME.", file:"V-Simulation.mp3", seconds:4, weight:1 },
-      { text:"THIS WAS A TEST OF THE EMERGENCY BROADCAST SYSTEM. THIS WAS ONLY A TEST. IF THIS HAD BEEN AN ACTUAL EMERGENCY, THE SIGNAL YOU JUST HEARD WOULD HAVE BEEN FOLLOWED BY MASSIVE EXPLOSIONS, SCREAMING, AND DEATH. THIS CONCLUDES THIS TEST OF THE EMERGENCY BROADCAST SYSTEM.", file:"V-Emergency.mp3", seconds:19, weight:1 },
+      { text:"THIS WOULD BE A GOOD TIME FOR EVERYONE TO SEEK OUT AN UNDERGROUND SHELTER. PLEASE DO NOT PANIC. YOU HAVE APPROXIMATELY TWO MINUTES.", file:"Lose-shelter.mp3", seconds:8, weight:28 },
+      { text:"WHAT YOU SEE ON THE SCREEN IS A FANTASY, A COMPUTER-ENHANCED HALLUCINATION. IT’S NOT A REAL ASTEROID! IT’S A PHANTOM!", file:"Lose-fantasy.mp3", seconds:7, weight:8 },
+      { text:"ARE YOU SURE YOU WOULDN’T RATHER HAVE THE BLUE PILL?", file:"Lose-pill.mp3", seconds:2, weight:28 },
+      { text:"GOOD THING THIS WAS A SIMULATION. BETTER LUCK NEXT TIME.", file:"V-Simulation.mp3", seconds:4, weight:28 },
+      { text:"THIS WAS A TEST OF THE EMERGENCY BROADCAST SYSTEM. THIS WAS ONLY A TEST. IF THIS HAD BEEN AN ACTUAL EMERGENCY, THE SIGNAL YOU JUST HEARD WOULD HAVE BEEN FOLLOWED BY MASSIVE EXPLOSIONS, SCREAMING, AND DEATH. THIS CONCLUDES THIS TEST OF THE EMERGENCY BROADCAST SYSTEM.", file:"V-Emergency.mp3", seconds:19, weight:8 },
     ],
   };
 
@@ -1548,8 +1551,10 @@ function pickOccurrence(forcedMode = null) {
 
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
+let generatedCodeMode = "std";
 function generateCode16(forcedMode = null) {
   const mode = pickOccurrence(forcedMode);
+  generatedCodeMode = mode;
 
   // Fixed 16-digit sequences
   if (mode === "pi") return PI_CODE.slice();
@@ -1867,7 +1872,7 @@ msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
     game={
       levelKey, levelName:lvl.name,
       remaining:lvl.guesses,
-      code, solvedSets:0, totalTurns:0, turnsPerSet:[0,0,0,0],
+      code, codeMode:generatedCodeMode, solvedSets:0, totalTurns:0, turnsPerSet:[0,0,0,0],
       turnsAtLastCompletion: 0,
       avgOverride: "",
       setLogs:[[],[],[],[]],
@@ -1891,6 +1896,19 @@ msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
 
     updateAveragesUI();
   }
+
+ const SPECIAL_WIN_MESSAGES = {
+    pi: { text:"AWESOME! YOU WERE RUNNING CIRCLES AROUND THIS SECURITY SYSTEM!", file:"win-pi.mp3", seconds:3 },
+    phi: { text:"THAT WAS JUST GOLDEN! ROCK ON!", file:"win-phi.mp3", seconds:2 },
+    e: { text:"GREAT RECOGNITION! IT MAY NOT BE SO EASY NEXT TIME.", file:"win-e.mp3", seconds:4 },
+    bdate: { text:"13 MINUTES TO SPARE. OKAY TO GO!", file:"win-bdate.mp3", seconds:2 },
+    sqtwo: { text:"I CAN TELL WHAT'S GOING ON: IT'S HIP TO BE SQUARE!", file:"win-sqtwo.mp3", seconds:3 },
+    hi: { text:"DR. LANGFORD SENDS HIS FORMAL GREETINGS AND COMPLIMENTS ON A BONNY BIT OF CODE BREAKING.", file:"win-hi.mp3", seconds:5 },
+    tau: { text:"YOU SAVED THE WORLD! TO SHOW APPRECIATION, YOU GET TWO SLICES OF PI!", file:"win-tao.mp3", seconds:4 },
+    fib: { text:"WAIT! WHO WROTE THIS, DR. LANGFORD OR DR. LANGDON? EITHER WAY, THE RESULT IS DIVINE!", file:"win-fib.mp3", seconds:6 },
+    prime: { text:"THAT IS A PRIME EXAMPLE OF WHAT YOU CAN DO WHEN YOU PUT YOUR MIND TO IT. WELL DONE!", file:"win-prime.mp3", seconds:4 },
+    langford: { text:"YOU HAVE SAVED THE DAY! DR. LANGFORD WILL BE IMPRESSED!", file:"win-langford.mp3", seconds:3 }
+  };
 
  function failGame(){
   if (!game || game.done) return;
@@ -2009,7 +2027,7 @@ msg(`<span class="msgStrong">SYSTEM:</span> Awaiting level selection…`);
         game.avgOverride = "";
         updateAveragesUI();
 
-        const w = pickFromPool("Win");
+        const w = SPECIAL_WIN_MESSAGES[game.codeMode] || pickFromPool("Win");
         winAwaitingLaunch=true;
 
         setTimeout(()=>{
